@@ -200,15 +200,20 @@ export function applyPayloadToForm(
   const fd = payloadToFormData(payload);
 
   for (const el of Array.from(form.elements)) {
+    if (!("name" in el) || !(el as HTMLElement & { name?: string }).name) {
+      continue;
+    }
+
+    if (el instanceof HTMLSelectElement) {
+      const value = fd.get(el.name);
+      el.value = typeof value === "string" ? value : "";
+      continue;
+    }
+
     if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) {
       continue;
     }
     if (!el.name) continue;
-
-    if (el instanceof HTMLInputElement && el.type === "radio") {
-      el.checked = fd.get(el.name) === el.value;
-      continue;
-    }
 
     if (el instanceof HTMLInputElement && el.type === "checkbox") {
       el.checked = fd.has(el.name);

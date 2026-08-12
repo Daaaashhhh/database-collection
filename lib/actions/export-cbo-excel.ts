@@ -316,36 +316,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     { size: 9, italic: true },
   );
 
-  row = sectionBanner(sheet, row, "A. DATA PRIVACY CONSENT");
-  const consentStart = row;
-  sheet.getRow(consentStart).height = 68;
-  sheet.getRow(consentStart + 1).height = 52;
-  mergeSet(
-    sheet,
-    consentStart,
-    1,
-    consentStart + 1,
-    8,
-    "I hereby agree and give my free and voluntary consent to the Department of Social Welfare and Development (DSWD) to collect, process, and store my personal information, as required under the Data Privacy Act (DPA) of 2012, for the purpose of the Enhanced Partnership Against Hunger and Poverty (EPAHP) Digital Mapping System (DMS). For more information, visit http://epahp.org.",
-    { size: 9, valign: "top" },
-  );
-  mergeSet(sheet, consentStart, 9, consentStart, COLS, "(Thumbmark if unable to write)", {
-    size: 9,
-    align: "center",
-    valign: "middle",
-    fill: LIGHT_FILL,
-  });
-  mergeSet(
-    sheet,
-    consentStart + 1,
-    9,
-    consentStart + 1,
-    COLS,
-    `${getValue(data, "signature_name") || "________________________"}\nSignature over printed name*`,
-    { size: 10, align: "center", valign: "middle" },
-  );
-  row = consentStart + 2;
-
   const mode = getValue(data, "mode_of_collection");
   // Mode of collection / metadata — let labeledBlock auto-size
   labeledBlock(
@@ -399,7 +369,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   );
   row += 1;
 
-  row = sectionBanner(sheet, row, "B. COMMUNITY-BASED ORGANIZATION INFORMATION");
+  row = sectionBanner(sheet, row, "A. COMMUNITY-BASED ORGANIZATION INFORMATION");
   row = stepBanner(sheet, row, "STEP 1: BASIC INFORMATION");
 
   sheet.getRow(row).height = 44;
@@ -457,6 +427,74 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     COLS,
     "A.5 Congressional District*",
     getValue(data, "congressional_district"),
+  );
+  row += 1;
+
+  // A.6–A.10 Primary Contact
+  labeledBlock(
+    sheet, row, 1, row, 8,
+    "A.6 Complete Name of the CBO Contact Person (Primary)",
+    getValue(data, "primary_contact_name"),
+  );
+  labeledBlock(
+    sheet, row, 9, row, COLS,
+    "A.7 Designation*",
+    getValue(data, "primary_contact_designation"),
+    "(Position of the contact person)",
+  );
+  row += 1;
+
+  labeledBlock(
+    sheet, row, 1, row, 4,
+    "A.8 Email Address*",
+    getValue(data, "primary_contact_email"),
+    "(Office email address of the contact person)",
+  );
+  labeledBlock(
+    sheet, row, 5, row, 8,
+    "A.9 Telephone No.*",
+    getValue(data, "primary_contact_telephone"),
+    "(Direct office number)",
+  );
+  labeledBlock(
+    sheet, row, 9, row, COLS,
+    "A.10 Mobile No.*",
+    getValue(data, "primary_contact_mobile"),
+    "(Office mobile number of the contact person)",
+  );
+  row += 1;
+
+  // A.11–A.15 Secondary Contact
+  labeledBlock(
+    sheet, row, 1, row, 8,
+    "A.11 Complete Name of the CBO Contact Person (Secondary)",
+    getValue(data, "secondary_contact_name"),
+  );
+  labeledBlock(
+    sheet, row, 9, row, COLS,
+    "A.12 Designation",
+    getValue(data, "secondary_contact_designation"),
+    "(Position of the contact person)",
+  );
+  row += 1;
+
+  labeledBlock(
+    sheet, row, 1, row, 4,
+    "A.13 Email Address",
+    getValue(data, "secondary_contact_email"),
+    "(Office email address of the contact person)",
+  );
+  labeledBlock(
+    sheet, row, 5, row, 8,
+    "A.14 Telephone No.",
+    getValue(data, "secondary_contact_telephone"),
+    "(Direct office number)",
+  );
+  labeledBlock(
+    sheet, row, 9, row, COLS,
+    "A.15 Mobile No",
+    getValue(data, "secondary_contact_mobile"),
+    "(Office mobile number of the contact person)",
   );
   row += 1;
 
@@ -926,152 +964,8 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   });
   row += 1;
 
-  // Step 4
-  row = stepBanner(sheet, row, "STEP 4: CONTACT INFORMATION");
-
-  sheet.getRow(row).height = 40;
-  labeledBlock(
-    sheet,
-    row,
-    1,
-    row,
-    8,
-    "D.1 Complete Name of the CBO Contact Person (Primary)",
-    getValue(data, "primary_contact_name"),
-  );
-  labeledBlock(
-    sheet,
-    row,
-    9,
-    row,
-    COLS,
-    "D.2 Designation*",
-    getValue(data, "primary_contact_designation"),
-    "(Position of the contact person)",
-  );
-  row += 1;
-
-  sheet.getRow(row).height = 40;
-  labeledBlock(
-    sheet,
-    row,
-    1,
-    row,
-    4,
-    "D.3 Email Address*",
-    getValue(data, "primary_contact_email"),
-    "(Office email address of the contact person)",
-  );
-  labeledBlock(
-    sheet,
-    row,
-    5,
-    row,
-    8,
-    "D.4 Telephone No.*",
-    getValue(data, "primary_contact_telephone"),
-    "(Direct office number)",
-  );
-  labeledBlock(
-    sheet,
-    row,
-    9,
-    row,
-    COLS,
-    "D.5 Mobile No.*",
-    getValue(data, "primary_contact_mobile"),
-    "(Office mobile number of the contact person)",
-  );
-  row += 1;
-
-  sheet.getRow(row).height = 40;
-  labeledBlock(
-    sheet,
-    row,
-    1,
-    row,
-    8,
-    "D.6 Complete Name of the CBO Contact Person (Secondary)",
-    getValue(data, "secondary_contact_name"),
-  );
-  labeledBlock(
-    sheet,
-    row,
-    9,
-    row,
-    COLS,
-    "D.7 Designation",
-    getValue(data, "secondary_contact_designation"),
-    "(Position of the contact person)",
-  );
-  row += 1;
-
-  sheet.getRow(row).height = 40;
-  labeledBlock(
-    sheet,
-    row,
-    1,
-    row,
-    4,
-    "D.8 Email Address",
-    getValue(data, "secondary_contact_email"),
-    "(Office email address of the contact person)",
-  );
-  labeledBlock(
-    sheet,
-    row,
-    5,
-    row,
-    8,
-    "D.9 Telephone No.",
-    getValue(data, "secondary_contact_telephone"),
-    "(Direct office number)",
-  );
-  labeledBlock(
-    sheet,
-    row,
-    9,
-    row,
-    COLS,
-    "D.10 Mobile No",
-    getValue(data, "secondary_contact_mobile"),
-    "(Office mobile number of the contact person)",
-  );
-  row += 1;
-
-  // Step 5
-  row = stepBanner(sheet, row, "STEP 5: EPAHP DIGITAL MAPPING SYSTEM CERTIFICATION");
-  const certStart = row;
-  sheet.getRow(certStart).height = 60;
-  sheet.getRow(certStart + 1).height = 52;
-  mergeSet(
-    sheet,
-    certStart,
-    1,
-    certStart + 1,
-    8,
-    "I hereby affirm that the information provided is accurate to the best of my knowledge and belief. I certify that I am the original source of the provided information. In cases where I am not the original source, I have obtained explicit permission to share this information and am authorized to do so. Additionally, I understand that the content shared does not infringe upon any copyright or intellectual property rights, and I have the legal right to submit this information.",
-    { size: 9, valign: "top" },
-  );
-  mergeSet(
-    sheet,
-    certStart,
-    9,
-    certStart,
-    COLS,
-    `${getValue(data, "cbo_representative_signature_name") || "________________________"}\nSignature over printed name of the CBO Representative*`,
-    { size: 9, align: "center", valign: "middle" },
-  );
-  mergeSet(sheet, certStart + 1, 9, certStart + 1, COLS, "(Thumbmark if unable to write)", {
-    size: 9,
-    align: "center",
-    valign: "middle",
-    fill: LIGHT_FILL,
-  });
-  row = certStart + 2;
-
-  // C. NP-CP Requirement Checklist
-  row = sectionBanner(sheet, row, "C. NP-CP REQUIREMENT CHECKLIST");
+  // B. NP-CP Requirement Checklist
+  row = sectionBanner(sheet, row, "B. NP-CP REQUIREMENT CHECKLIST");
   row = mergeSet(sheet, row, 1, row, COLS, "I. LEGAL REQUIREMENTS", {
     bold: true,
     size: 11,

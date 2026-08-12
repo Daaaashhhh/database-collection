@@ -56,6 +56,36 @@ function FieldLabel({
   );
 }
 
+function SelectInput({
+  name,
+  options,
+  placeholder = "— Select —",
+  defaultValue,
+  onChange,
+}: {
+  name: string;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+}) {
+  return (
+    <select
+      name={name}
+      defaultValue={defaultValue ?? ""}
+      onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+      className="mt-1 h-9 w-full border border-zinc-300 bg-white px-2 text-[13px] text-black outline-none focus:border-black"
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function TextInput({
   name,
   placeholder,
@@ -692,9 +722,14 @@ export function CboInformationSheet({
   });
   const readOnly = mode === "view";
 
+  const [orgRegistration, setOrgRegistration] = useState(
+    () => initialData?.organization_registration ?? "",
+  );
+
   useEffect(() => {
     if (!initialData || !formRef.current) return;
     applyPayloadToForm(formRef.current, initialData);
+    setOrgRegistration(initialData.organization_registration ?? "");
   }, [initialData]);
 
   async function persistRecord(formData: FormData) {
@@ -882,76 +917,18 @@ export function CboInformationSheet({
         </div>
       </div>
 
-      {/* A. Data Privacy Consent */}
-      <SectionHeader>A. Data Privacy Consent</SectionHeader>
-      <div className="grid border-b border-black md:grid-cols-[1.6fr_1fr]">
-        <div className="border-b border-black p-3 text-[11.5px] leading-relaxed text-black md:border-b-0 md:border-r md:p-4">
-          <p>
-            I hereby agree and give my free and voluntary consent to the
-            Department of Social Welfare and Development (DSWD) to collect,
-            process, and store my personal information, as required under the
-            Data Privacy Act (DPA) of 2012, for the purpose of the Enhanced
-            Partnership Against Hunger and Poverty (EPAHP) Digital Mapping
-            System (DMS).
-          </p>
-          <p className="mt-2">
-            I understand that my information will be used solely for official
-            EPAHP program purposes, including validation, monitoring, and
-            reporting. For more information, visit{" "}
-            <a
-              href="http://epahp.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
-              http://epahp.org
-            </a>
-            .
-          </p>
-        </div>
-
-        <div className="grid grid-rows-2">
-          <div className="flex min-h-24 flex-col border-b border-black p-3">
-            <div className="flex flex-1 items-center justify-center rounded-sm border border-dashed border-zinc-400 bg-zinc-50/60">
-              <span className="text-[11px] text-zinc-500">Thumbmark area</span>
-            </div>
-            <p className="mt-2 text-center text-[11px] text-black">
-              (Thumbmark if unable to write)
-            </p>
-          </div>
-          <div className="flex min-h-24 flex-col justify-end p-3">
-            <input
-              name="signature_name"
-              type="text"
-              className="h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
-              aria-label="Signature over printed name"
-            />
-            <p className="mt-2 text-center text-[11px] font-medium text-black">
-              Signature over printed name
-              <RequiredMark />
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Collection metadata */}
       <div className="grid border-b border-black md:grid-cols-[1.35fr_1fr_0.9fr_0.75fr_0.75fr]">
         <div className="border-b border-black p-3 md:border-b-0 md:border-r">
           <FieldLabel title="Mode of Collection" />
-          <div className="mt-2 flex flex-col gap-2">
-            <CheckboxOption
-              type="radio"
-              name="mode_of_collection"
-              value="actual"
-              label="Actual (Field Visit, etc.)"
-            />
-            <CheckboxOption
-              type="radio"
-              name="mode_of_collection"
-              value="virtual"
-              label="Virtual (Phone Interview, Virtual Mtg, etc.)"
-            />
-          </div>
+          <SelectInput
+            name="mode_of_collection"
+            defaultValue={initialData?.mode_of_collection}
+            options={[
+              { value: "actual", label: "Actual (Field Visit, etc.)" },
+              { value: "virtual", label: "Virtual (Phone Interview, Virtual Mtg, etc.)" },
+            ]}
+          />
         </div>
 
         <div className="border-b border-black p-3 md:border-b-0 md:border-r">
@@ -986,8 +963,8 @@ export function CboInformationSheet({
         </div>
       </div>
 
-      {/* B. CBO Information */}
-      <SectionHeader>B. Community-Based Organization Information</SectionHeader>
+      {/* A. CBO Information */}
+      <SectionHeader>A. Community-Based Organization Information</SectionHeader>
       <div className="border-b border-black bg-[#d9e8cb] px-3 py-2 text-center text-[12.5px] font-bold uppercase tracking-wide text-black">
         Step 1: Basic Information
       </div>
@@ -1033,24 +1010,116 @@ export function CboInformationSheet({
       <div className="grid border-b border-black md:grid-cols-2">
         <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
           <FieldLabel code="A.4" title="CBO Representation" required />
-          <div className="mt-3 flex flex-wrap gap-6">
-            <CheckboxOption
-              type="radio"
-              name="cbo_representation"
-              value="main"
-              label="Main"
-            />
-            <CheckboxOption
-              type="radio"
-              name="cbo_representation"
-              value="branch"
-              label="Branch"
-            />
-          </div>
+          <SelectInput
+            name="cbo_representation"
+            defaultValue={initialData?.cbo_representation}
+            options={[
+              { value: "main", label: "Main" },
+              { value: "branch", label: "Branch" },
+            ]}
+          />
         </div>
         <div className="p-3 md:p-4">
           <FieldLabel code="A.5" title="Congressional District" required />
           <TextInput name="congressional_district" />
+        </div>
+      </div>
+
+      {/* A.6 + A.7 (Primary Contact) */}
+      <div className="grid border-b border-black md:grid-cols-[1.7fr_1fr]">
+        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
+          <FieldLabel
+            code="A.6"
+            title="Complete Name of the CBO Contact Person (Primary)"
+          />
+          <TextInput name="primary_contact_name" />
+        </div>
+        <div className="p-3 md:p-4">
+          <FieldLabel
+            code="A.7"
+            title="Designation"
+            required
+            hint="(Position of the contact person)"
+          />
+          <TextInput name="primary_contact_designation" />
+        </div>
+      </div>
+
+      {/* A.8 + A.9 + A.10 */}
+      <div className="grid border-b border-black md:grid-cols-3">
+        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
+          <FieldLabel
+            code="A.8"
+            title="Email Address"
+            required
+            hint="(Office email address of the contact person)"
+          />
+          <TextInput name="primary_contact_email" type="email" />
+        </div>
+        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
+          <FieldLabel
+            code="A.9"
+            title="Telephone No."
+            required
+            hint="(Direct office number)"
+          />
+          <TextInput name="primary_contact_telephone" type="tel" />
+        </div>
+        <div className="p-3 md:p-4">
+          <FieldLabel
+            code="A.10"
+            title="Mobile No."
+            required
+            hint="(Office mobile number of the contact person)"
+          />
+          <TextInput name="primary_contact_mobile" type="tel" />
+        </div>
+      </div>
+
+      {/* A.11 + A.12 (Secondary Contact) */}
+      <div className="grid border-b border-black md:grid-cols-[1.7fr_1fr]">
+        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
+          <FieldLabel
+            code="A.11"
+            title="Complete Name of the CBO Contact Person (Secondary)"
+          />
+          <TextInput name="secondary_contact_name" />
+        </div>
+        <div className="p-3 md:p-4">
+          <FieldLabel
+            code="A.12"
+            title="Designation"
+            hint="(Position of the contact person)"
+          />
+          <TextInput name="secondary_contact_designation" />
+        </div>
+      </div>
+
+      {/* A.13 + A.14 + A.15 */}
+      <div className="grid border-b border-black md:grid-cols-3">
+        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
+          <FieldLabel
+            code="A.13"
+            title="Email Address"
+            hint="(Office email address of the contact person)"
+          />
+          <TextInput name="secondary_contact_email" type="email" />
+        </div>
+        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
+          <FieldLabel
+            code="A.14"
+            title="Telephone No."
+            hint="(Direct office number)"
+          />
+          <TextInput name="secondary_contact_telephone" type="tel" />
+        </div>
+        <div className="p-3 md:p-4">
+          <FieldLabel
+            code="A.15"
+            title="Mobile No"
+            hint="(Office mobile number of the contact person)"
+          />
+          <TextInput name="secondary_contact_mobile" type="tel" />
         </div>
       </div>
 
@@ -1063,47 +1132,26 @@ export function CboInformationSheet({
       <div className="grid border-b border-black md:grid-cols-3">
         <div className="border-b border-black p-3 md:row-span-2 md:border-b-0 md:border-r md:p-4">
           <FieldLabel code="B.1" title="Organization Registration" required />
-          <p className="mb-2 text-[11px] italic text-zinc-600">Choose one:</p>
-          <div className="flex flex-col gap-2">
-            <CheckboxOption
-              type="radio"
-              name="organization_registration"
-              value="cooperative"
-              label="Cooperative"
-            />
-            <CheckboxOption
-              type="radio"
-              name="organization_registration"
-              value="stock_corporation"
-              label="Stock Corporation"
-            />
-            <CheckboxOption
-              type="radio"
-              name="organization_registration"
-              value="non_stock_corporation"
-              label="Non-stock Corporation"
-            />
-            <CheckboxOption
-              type="radio"
-              name="organization_registration"
-              value="unregistered"
-              label="Unregistered"
-            />
-            <label className="inline-flex cursor-pointer items-center gap-2 text-[12.5px] text-black">
-              <input
-                type="radio"
-                name="organization_registration"
-                value="others"
-                className="size-3.5 shrink-0 accent-black"
-              />
-              <span className="shrink-0">Others:</span>
-              <input
+          <SelectInput
+            name="organization_registration"
+            defaultValue={initialData?.organization_registration}
+            onChange={setOrgRegistration}
+            options={[
+              { value: "cooperative", label: "Cooperative" },
+              { value: "stock_corporation", label: "Stock Corporation" },
+              { value: "non_stock_corporation", label: "Non-stock Corporation" },
+              { value: "unregistered", label: "Unregistered" },
+              { value: "others", label: "Others" },
+            ]}
+          />
+          {orgRegistration === "others" && (
+            <div className="mt-2">
+              <TextInput
                 name="organization_registration_other"
-                type="text"
-                className="h-7 min-w-0 flex-1 border-0 border-b border-zinc-400 bg-transparent px-0 text-[13px] outline-none focus:border-black"
+                placeholder="Please specify"
               />
-            </label>
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="border-b border-black p-3 md:border-r md:p-4">
@@ -1120,7 +1168,6 @@ export function CboInformationSheet({
           <FieldLabel
             code="B.3"
             title="Philippine Statistical Industry Classification"
-            required
             hint="(Enter the official PSIC classification code of your organization if available)"
           />
           <TextInput name="psic_classification" />
@@ -1154,20 +1201,14 @@ export function CboInformationSheet({
             required
             hint="Check yes if the highest leadership position (ex. President, Chairperson) is held by a woman"
           />
-          <div className="mt-3 flex flex-wrap gap-6">
-            <CheckboxOption
-              type="radio"
-              name="female_led"
-              value="yes"
-              label="Yes"
-            />
-            <CheckboxOption
-              type="radio"
-              name="female_led"
-              value="no"
-              label="No"
-            />
-          </div>
+          <SelectInput
+            name="female_led"
+            defaultValue={initialData?.female_led}
+            options={[
+              { value: "yes", label: "Yes" },
+              { value: "no", label: "No" },
+            ]}
+          />
         </div>
       </div>
 
@@ -1388,153 +1429,8 @@ export function CboInformationSheet({
         </div>
       </div>
 
-      {/* Step 4 */}
-      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-center text-[12.5px] font-bold uppercase tracking-wide text-black">
-        Step 4: Contact Information
-      </div>
-
-      {/* D.1 + D.2 */}
-      <div className="grid border-b border-black md:grid-cols-[1.7fr_1fr]">
-        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
-          <FieldLabel
-            code="D.1"
-            title="Complete Name of the CBO Contact Person (Primary)"
-          />
-          <TextInput name="primary_contact_name" />
-        </div>
-        <div className="p-3 md:p-4">
-          <FieldLabel
-            code="D.2"
-            title="Designation"
-            required
-            hint="(Position of the contact person)"
-          />
-          <TextInput name="primary_contact_designation" />
-        </div>
-      </div>
-
-      {/* D.3 + D.4 + D.5 */}
-      <div className="grid border-b border-black md:grid-cols-3">
-        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
-          <FieldLabel
-            code="D.3"
-            title="Email Address"
-            required
-            hint="(Office email address of the contact person)"
-          />
-          <TextInput name="primary_contact_email" type="email" />
-        </div>
-        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
-          <FieldLabel
-            code="D.4"
-            title="Telephone No."
-            required
-            hint="(Direct office number)"
-          />
-          <TextInput name="primary_contact_telephone" type="tel" />
-        </div>
-        <div className="p-3 md:p-4">
-          <FieldLabel
-            code="D.5"
-            title="Mobile No."
-            required
-            hint="(Office mobile number of the contact person)"
-          />
-          <TextInput name="primary_contact_mobile" type="tel" />
-        </div>
-      </div>
-
-      {/* D.6 + D.7 */}
-      <div className="grid border-b border-black md:grid-cols-[1.7fr_1fr]">
-        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
-          <FieldLabel
-            code="D.6"
-            title="Complete Name of the CBO Contact Person (Secondary)"
-          />
-          <TextInput name="secondary_contact_name" />
-        </div>
-        <div className="p-3 md:p-4">
-          <FieldLabel
-            code="D.7"
-            title="Designation"
-            hint="(Position of the contact person)"
-          />
-          <TextInput name="secondary_contact_designation" />
-        </div>
-      </div>
-
-      {/* D.8 + D.9 + D.10 */}
-      <div className="grid border-b border-black md:grid-cols-3">
-        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
-          <FieldLabel
-            code="D.8"
-            title="Email Address"
-            hint="(Office email address of the contact person)"
-          />
-          <TextInput name="secondary_contact_email" type="email" />
-        </div>
-        <div className="border-b border-black p-3 md:border-b-0 md:border-r md:p-4">
-          <FieldLabel
-            code="D.9"
-            title="Telephone No."
-            hint="(Direct office number)"
-          />
-          <TextInput name="secondary_contact_telephone" type="tel" />
-        </div>
-        <div className="p-3 md:p-4">
-          <FieldLabel
-            code="D.10"
-            title="Mobile No"
-            hint="(Office mobile number of the contact person)"
-          />
-          <TextInput name="secondary_contact_mobile" type="tel" />
-        </div>
-      </div>
-
-      {/* Step 5 */}
-      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-center text-[12.5px] font-bold uppercase tracking-wide text-black">
-        Step 5: EPAHP Digital Mapping System Certification
-      </div>
-      <div className="grid border-b border-black md:grid-cols-[1.6fr_1fr]">
-        <div className="border-b border-black p-3 text-[11.5px] leading-relaxed text-black md:border-b-0 md:border-r md:p-4">
-          <p>
-            I hereby affirm that the information provided is accurate to the
-            best of my knowledge and belief. I certify that I am the original
-            source of the provided information. In cases where I am not the
-            original source, I have obtained explicit permission to share this
-            information and am authorized to do so. Additionally, I understand
-            that the content shared does not infringe upon any copyright or
-            intellectual property rights, and I have the legal right to submit
-            this information.
-          </p>
-        </div>
-
-        <div className="grid grid-rows-2">
-          <div className="flex min-h-28 flex-col justify-end border-b border-black p-3">
-            <input
-              name="cbo_representative_signature_name"
-              type="text"
-              className="h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
-              aria-label="Signature over printed name of the CBO Representative"
-            />
-            <p className="mt-2 text-center text-[11px] font-medium text-black">
-              Signature over printed name of the CBO Representative
-              <RequiredMark />
-            </p>
-          </div>
-          <div className="flex min-h-28 flex-col p-3">
-            <div className="flex flex-1 items-center justify-center rounded-sm border border-dashed border-zinc-400 bg-zinc-50/60">
-              <span className="text-[11px] text-zinc-500">Thumbmark area</span>
-            </div>
-            <p className="mt-2 text-center text-[11px] text-black">
-              (Thumbmark if unable to write)
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* C. NP-CP Requirement Checklist */}
-      <SectionHeader>C. NP-CP Requirement Checklist</SectionHeader>
+      {/* B. NP-CP Requirement Checklist */}
+      <SectionHeader>B. NP-CP Requirement Checklist</SectionHeader>
       <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
         I. Legal Requirements
       </div>
@@ -1958,24 +1854,15 @@ export function CboInformationSheet({
               </li>
             </ol>
           </div>
-          <div className="flex flex-col gap-2 px-3 py-3">
-            <CheckboxOption
-              type="radio"
+          <div className="px-3 py-3">
+            <SelectInput
               name="cbo_assessment_status"
-              value="qualified"
-              label="Qualified"
-            />
-            <CheckboxOption
-              type="radio"
-              name="cbo_assessment_status"
-              value="semi_qualified"
-              label="Semi-qualified"
-            />
-            <CheckboxOption
-              type="radio"
-              name="cbo_assessment_status"
-              value="not_qualified"
-              label="Not Qualified"
+              defaultValue={initialData?.cbo_assessment_status}
+              options={[
+                { value: "qualified", label: "Qualified" },
+                { value: "semi_qualified", label: "Semi-qualified" },
+                { value: "not_qualified", label: "Not Qualified" },
+              ]}
             />
           </div>
         </div>
@@ -2035,18 +1922,14 @@ export function CboInformationSheet({
           Kindly check and provide the result of the assessment of the CBO along
           with a narrative justification
         </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:gap-8">
-          <CheckboxOption
-            type="radio"
+        <div className="mt-3">
+          <SelectInput
             name="rct_deliberation"
-            value="recommended"
-            label="RECOMMENDED FOR RCT DELIBERATION"
-          />
-          <CheckboxOption
-            type="radio"
-            name="rct_deliberation"
-            value="not_recommended"
-            label="NOT RECOMMENDED FOR RCT DELIBERATION"
+            defaultValue={initialData?.rct_deliberation}
+            options={[
+              { value: "recommended", label: "RECOMMENDED FOR RCT DELIBERATION" },
+              { value: "not_recommended", label: "NOT RECOMMENDED FOR RCT DELIBERATION" },
+            ]}
           />
         </div>
         <p className="mt-4 text-[12.5px] font-bold uppercase text-black">
@@ -2080,15 +1963,22 @@ export function CboInformationSheet({
         Validators
       </div>
       <div className="grid border-b border-black md:grid-cols-[1.2fr_1.2fr_0.6fr]">
-        <div className="flex min-h-36 flex-col justify-end border-b border-black p-4 md:border-b-0 md:border-r">
-          <p className="mb-auto text-[12.5px] font-bold text-black">
+        <div className="flex min-h-36 flex-col border-b border-black p-4 md:border-b-0 md:border-r">
+          <p className="mb-2 text-[12.5px] font-bold text-black">
             Validate by:
           </p>
-          <input
+          <SelectInput
             name="validator_field_pdo_name"
-            type="text"
-            className="mt-8 h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
-            aria-label="Signature over Printed Name of Field Validator (PDO)"
+            defaultValue={initialData?.validator_field_pdo_name}
+            placeholder="— Select validator —"
+            options={[
+              { value: "Maynard A. Cezar", label: "Maynard A. Cezar" },
+              { value: "Janz Omar D. Morales", label: "Janz Omar D. Morales" },
+              { value: "Mary Claire L. Dela Cruz", label: "Mary Claire L. Dela Cruz" },
+              { value: "Ronalyn A. Isip", label: "Ronalyn A. Isip" },
+              { value: "Channel C. Manlapaz", label: "Channel C. Manlapaz" },
+              { value: "A-R D. Tuazon", label: "A-R D. Tuazon" },
+            ]}
           />
           <p className="mt-2 text-center text-[11px] text-black">
             Signature over Printed Name of Field Validator (PDO)

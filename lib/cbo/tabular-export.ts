@@ -39,18 +39,17 @@ function buildColumns(): TabularColumn[] {
     col("created_at", "Created At"),
     col("updated_at", "Updated At"),
 
-    col("signature_name", "Signature Name"),
     col("mode_of_collection", "Mode of Collection"),
     col("validation_activities_count", "Validation Activities Count"),
     col("date_of_accomplishment", "Date of Accomplishment"),
     col("time_started", "Time Started"),
     col("time_ended", "Time Ended"),
 
-    col("organization_name", "Organization Name"),
-    col("organization_short_name", "Organization Short Name"),
-    col("office_address", "Office Address"),
-    col("cbo_representation", "CBO Representation"),
-    col("congressional_district", "Congressional District"),
+    col("organization_name", "A.1 Organization Name"),
+    col("organization_short_name", "A.2 Organization Short Name"),
+    col("office_address", "A.3 Office Address"),
+    col("cbo_representation", "A.4 CBO Representation"),
+    col("congressional_district", "A.5 Congressional District"),
 
     col("organization_registration", "Organization Registration"),
     col("organization_registration_other", "Organization Registration (Other)"),
@@ -125,20 +124,16 @@ function buildColumns(): TabularColumn[] {
   }
 
   columns.push(
-    col("primary_contact_name", "Primary Contact Name"),
-    col("primary_contact_designation", "Primary Contact Designation"),
-    col("primary_contact_email", "Primary Contact Email"),
-    col("primary_contact_telephone", "Primary Contact Telephone"),
-    col("primary_contact_mobile", "Primary Contact Mobile"),
-    col("secondary_contact_name", "Secondary Contact Name"),
-    col("secondary_contact_designation", "Secondary Contact Designation"),
-    col("secondary_contact_email", "Secondary Contact Email"),
-    col("secondary_contact_telephone", "Secondary Contact Telephone"),
-    col("secondary_contact_mobile", "Secondary Contact Mobile"),
-    col(
-      "cbo_representative_signature_name",
-      "CBO Representative Signature Name",
-    ),
+    col("primary_contact_name", "A.6 Contact Person (Primary) Name"),
+    col("primary_contact_designation", "A.7 Contact Person (Primary) Designation"),
+    col("primary_contact_email", "A.8 Contact Person (Primary) Email"),
+    col("primary_contact_telephone", "A.9 Contact Person (Primary) Telephone"),
+    col("primary_contact_mobile", "A.10 Contact Person (Primary) Mobile"),
+    col("secondary_contact_name", "A.11 Contact Person (Secondary) Name"),
+    col("secondary_contact_designation", "A.12 Contact Person (Secondary) Designation"),
+    col("secondary_contact_email", "A.13 Contact Person (Secondary) Email"),
+    col("secondary_contact_telephone", "A.14 Contact Person (Secondary) Telephone"),
+    col("secondary_contact_mobile", "A.15 Contact Person (Secondary) Mobile"),
     col(
       "legal_certificate_of_registration",
       "Legal Certificate of Registration",
@@ -208,15 +203,8 @@ function buildColumns(): TabularColumn[] {
   }
 
   columns.push(
-    col("issues_concerns_challenges", "Issues Concerns Challenges"),
-    col("action_taken", "Action Taken"),
-    col("recommendation", "Recommendation"),
     col("cbo_assessment_status", "CBO Assessment Status"),
-    col("cbo_assessment_remarks", "CBO Assessment Remarks"),
-    col("date_of_assessment", "Date of Assessment"),
-    col("cbo_other_remarks", "CBO Other Remarks"),
     col("rct_deliberation", "RCT Deliberation"),
-    col("assessment_narrative", "Assessment Narrative"),
     col("date_confirmed_epahp_qualified", "Date Confirmed EPAHP Qualified"),
     col("validator_field_pdo_name", "Validator Field PDO Name"),
     col("validator_rpc_name", "Validator RPC Name"),
@@ -330,7 +318,6 @@ export function flattenCboRecord(record: CboRecordExportRow): Record<string, str
     created_at: record.created_at,
     updated_at: record.updated_at,
 
-    signature_name: str(payload.signature_name),
     mode_of_collection: str(payload.mode_of_collection),
     validation_activities_count: str(payload.validation_activities_count),
     date_of_accomplishment: str(payload.date_of_accomplishment),
@@ -408,9 +395,6 @@ export function flattenCboRecord(record: CboRecordExportRow): Record<string, str
   row.secondary_contact_email = str(payload.secondary_contact_email);
   row.secondary_contact_telephone = str(payload.secondary_contact_telephone);
   row.secondary_contact_mobile = str(payload.secondary_contact_mobile);
-  row.cbo_representative_signature_name = str(
-    payload.cbo_representative_signature_name,
-  );
   row.legal_certificate_of_registration = boolValue(
     payload.legal_certificate_of_registration,
   );
