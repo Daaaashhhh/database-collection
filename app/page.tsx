@@ -30,7 +30,7 @@ export default function Home() {
           Foundation ready
         </p>
         <h1 className="mt-3 max-w-2xl font-sans text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-          Collect form data into PostgreSQL.
+          CBO Information Sheet
         </h1>
         <p className="mt-4 max-w-xl text-lg leading-relaxed text-zinc-600">
           EPAHP CBO Information Sheet Step 1 UI is ready. Database save and
