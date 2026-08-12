@@ -7,6 +7,7 @@ import {
   updateCboRecordAction,
 } from "@/lib/actions/save-cbo-record";
 import type { CboFormPayload } from "@/lib/cbo/parse-form-data";
+import { parseCboFormData } from "@/lib/cbo/parse-form-data";
 import {
   applyPayloadToForm,
   payloadToFormData,
@@ -373,8 +374,6 @@ function ProcurementExperienceTable({
                   <td key={suffix} className="border border-black p-1">
                     <input
                       name={`procurement_${row.key}_${suffix}`}
-                      type="number"
-                      min={0}
                       value={state[field]}
                       disabled={disabled}
                       onChange={(e) =>
@@ -497,8 +496,6 @@ function AnnualProductionTable({
               <td className="border border-black p-1">
                 <input
                   name={`production[${index}][quantity]`}
-                  type="number"
-                  inputMode="decimal"
                   value={row.quantity}
                   onChange={(e) => updateRow(index, "quantity", e.target.value)}
                   className="h-8 w-full bg-transparent px-1 text-[12.5px] outline-none"
@@ -515,8 +512,6 @@ function AnnualProductionTable({
               <td className="border border-black p-1">
                 <input
                   name={`production[${index}][market_value]`}
-                  type="number"
-                  inputMode="decimal"
                   value={row.marketValue}
                   onChange={(e) =>
                     updateRow(index, "marketValue", e.target.value)
@@ -674,8 +669,6 @@ function InterventionReceivedTable({
               <td className="border border-black p-1">
                 <input
                   name={`intervention[${index}][amount]`}
-                  type="number"
-                  inputMode="decimal"
                   value={row.amount}
                   onChange={(e) => updateRow(index, "amount", e.target.value)}
                   className="h-8 w-full bg-transparent px-1 text-[12.5px] outline-none"
@@ -722,15 +715,65 @@ export function CboInformationSheet({
   });
   const readOnly = mode === "view";
 
+  const draftStorageKey = `cbo_form_draft:${mode}:${recordId ?? "new"}`;
+
   const [orgRegistration, setOrgRegistration] = useState(
     () => initialData?.organization_registration ?? "",
   );
 
   useEffect(() => {
-    if (!initialData || !formRef.current) return;
-    applyPayloadToForm(formRef.current, initialData);
-    setOrgRegistration(initialData.organization_registration ?? "");
-  }, [initialData]);
+    if (!formRef.current || readOnly) return;
+
+    // Apply server payload first (edit/view modes), then restore any local draft.
+    if (initialData) {
+      applyPayloadToForm(formRef.current, initialData);
+      setOrgRegistration(initialData.organization_registration ?? "");
+    }
+
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (!raw) return;
+      const payload = JSON.parse(raw) as CboFormPayload;
+      applyPayloadToForm(formRef.current, payload);
+      setOrgRegistration(payload.organization_registration ?? "");
+    } catch (e) {
+      // If draft is corrupted, ignore and continue with initialData.
+      console.warn("Could not restore local draft", e);
+    }
+  }, [initialData, readOnly, draftStorageKey]);
+
+  // Debounced local autosave of the form into localStorage (prevents data loss on refresh).
+  useEffect(() => {
+    if (readOnly) return;
+    if (!formRef.current) return;
+
+    let timeout: number | undefined;
+    const formEl = formRef.current;
+
+    const scheduleSave = () => {
+      window.clearTimeout(timeout);
+      timeout = window.setTimeout(() => {
+        if (!formRef.current) return;
+        try {
+          const fd = new FormData(formRef.current);
+          const payload = parseCboFormData(fd);
+          localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+        } catch (e) {
+          // localStorage can be blocked/quota-limited; ignore to avoid breaking the form.
+          console.warn("Could not autosave draft", e);
+        }
+      }, 500);
+    };
+
+    formEl.addEventListener("input", scheduleSave);
+    formEl.addEventListener("change", scheduleSave);
+
+    return () => {
+      window.clearTimeout(timeout);
+      formEl.removeEventListener("input", scheduleSave);
+      formEl.removeEventListener("change", scheduleSave);
+    };
+  }, [readOnly, draftStorageKey]);
 
   async function persistRecord(formData: FormData) {
     return mode === "edit" && recordId
@@ -767,6 +810,12 @@ export function CboInformationSheet({
           recordId: null,
         });
         return;
+      }
+
+      try {
+        localStorage.removeItem(draftStorageKey);
+      } catch {
+        // ignore
       }
 
       try {
@@ -822,6 +871,11 @@ export function CboInformationSheet({
       const formData = new FormData(formRef.current);
       const result = await persistRecord(formData);
       if (result.ok) {
+        try {
+          localStorage.removeItem(draftStorageKey);
+        } catch {
+          // ignore
+        }
         setSaveModal({
           open: true,
           ok: true,
@@ -1222,7 +1276,6 @@ export function CboInformationSheet({
           />
           <TextInput
             name="members_agricultural_total"
-            type="number"
             placeholder="0"
           />
         </div>
@@ -1235,7 +1288,6 @@ export function CboInformationSheet({
             />
             <TextInput
               name="members_agricultural_male"
-              type="number"
               placeholder="0"
             />
           </div>
@@ -1247,7 +1299,6 @@ export function CboInformationSheet({
             />
             <TextInput
               name="members_agricultural_female"
-              type="number"
               placeholder="0"
             />
           </div>
@@ -1263,7 +1314,6 @@ export function CboInformationSheet({
         />
         <TextInput
           name="members_other_food_sectors_total"
-          type="number"
           placeholder="0"
         />
       </div>
@@ -1285,8 +1335,6 @@ export function CboInformationSheet({
               <span className="pb-1 font-medium">{field.label}</span>
               <input
                 name={field.name}
-                type="number"
-                min={0}
                 placeholder="0"
                 className="h-8 w-full border-0 border-b border-zinc-400 bg-transparent px-0 text-right text-[13px] outline-none focus:border-black"
               />
@@ -1327,7 +1375,7 @@ export function CboInformationSheet({
             required
             hint="(total amount of physical assets, operating assets, equipment, machineries etc. upon joining the EPAHP program)"
           />
-          <TextInput name="current_assets_amount" type="number" />
+          <TextInput name="current_assets_amount" />
         </div>
 
         <div className="row-span-1 border-b border-black p-3 md:row-span-2 md:border-b-0 md:p-4">
@@ -1337,7 +1385,7 @@ export function CboInformationSheet({
             required
             hint="(Annual gross sales of the organization)"
           />
-          <TextInput name="annual_gross_income" type="number" />
+          <TextInput name="annual_gross_income" />
         </div>
 
         <div className="border-b border-black p-3 md:col-start-1 md:border-b-0 md:border-r md:p-4">
@@ -1356,7 +1404,7 @@ export function CboInformationSheet({
             title="Total Liabilities (in PhP)"
             required
           />
-          <TextInput name="total_liabilities" type="number" />
+          <TextInput name="total_liabilities" />
         </div>
       </div>
 
