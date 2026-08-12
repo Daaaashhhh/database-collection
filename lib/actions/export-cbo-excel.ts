@@ -133,13 +133,26 @@ function mergeSet(
   endRow: number,
   endCol: number,
   value: string,
-  options?: Parameters<typeof applyRange>[5],
+  options?: Parameters<typeof applyRange>[5] & { autoHeight?: boolean },
 ) {
   if (startRow !== endRow || startCol !== endCol) {
     sheet.mergeCells(startRow, startCol, endRow, endCol);
   }
   sheet.getCell(startRow, startCol).value = value;
-  applyRange(sheet, startRow, startCol, endRow, endCol, options);
+  const { autoHeight = true, ...rangeOptions } = options ?? {};
+  applyRange(sheet, startRow, startCol, endRow, endCol, rangeOptions);
+
+  if (autoHeight) {
+    const colSpan = endCol - startCol + 1;
+    const fontSize = rangeOptions.size ?? 10;
+    ensureRowHeights(
+      sheet,
+      startRow,
+      endRow,
+      neededHeightForText(value, colSpan, fontSize),
+    );
+  }
+
   return endRow + 1;
 }
 
@@ -163,6 +176,49 @@ function stepBanner(sheet: ExcelJS.Worksheet, row: number, title: string) {
   });
 }
 
+/** Approx. wrapped line count for our default column width (~9.8). */
+function estimateWrappedLines(text: string, colSpan: number): number {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return 0;
+  // Conservative: Excel wraps earlier than raw char width, especially with bold text.
+  const charsPerLine = Math.max(8, Math.floor(colSpan * 6.5));
+  let lines = 0;
+  for (const paragraph of trimmed.split(/\r?\n/)) {
+    if (!paragraph) {
+      lines += 1;
+      continue;
+    }
+    lines += Math.max(1, Math.ceil(paragraph.length / charsPerLine));
+  }
+  return lines;
+}
+
+function ensureRowHeights(
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  endRow: number,
+  totalHeight: number,
+  minPerRow = 18,
+) {
+  const rowSpan = Math.max(1, endRow - startRow + 1);
+  const perRow = Math.max(minPerRow, totalHeight / rowSpan);
+  for (let r = startRow; r <= endRow; r += 1) {
+    const current = sheet.getRow(r).height ?? 15;
+    sheet.getRow(r).height = Math.max(current, perRow);
+  }
+}
+
+function neededHeightForText(
+  text: string,
+  colSpan: number,
+  fontSize = 10,
+  minHeight = 18,
+): number {
+  const lines = Math.max(1, estimateWrappedLines(text, colSpan));
+  const linePt = Math.max(12, fontSize + 4);
+  return Math.max(minHeight, lines * linePt + 8);
+}
+
 function labeledBlock(
   sheet: ExcelJS.Worksheet,
   startRow: number,
@@ -173,12 +229,11 @@ function labeledBlock(
   value: string,
   hint?: string,
 ) {
-  const labelText = hint ? `${label}\n${hint}` : label;
   sheet.mergeCells(startRow, startCol, endRow, endCol);
   const cell = sheet.getCell(startRow, startCol);
   cell.value = {
     richText: [
-      { text: labelText.split("\n")[0] + "\n", font: { bold: true, size: 10 } },
+      { text: `${label}\n`, font: { bold: true, size: 10 } },
       ...(hint
         ? [{ text: `${hint}\n`, font: { italic: true, size: 8, color: { argb: "FF555555" } } }]
         : []),
@@ -189,6 +244,15 @@ function labeledBlock(
     valign: "top",
     wrap: true,
   });
+
+  const colSpan = endCol - startCol + 1;
+  const combined = [label, hint ?? "", value || " "].filter(Boolean).join("\n");
+  ensureRowHeights(
+    sheet,
+    startRow,
+    endRow,
+    neededHeightForText(combined, colSpan, 11, 36),
+  );
 }
 
 async function buildCboWorkbook(data: FormData) {
@@ -283,7 +347,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   row = consentStart + 2;
 
   const mode = getValue(data, "mode_of_collection");
-  sheet.getRow(row).height = 52;
+  // Mode of collection / metadata — let labeledBlock auto-size
   labeledBlock(
     sheet,
     row,
@@ -472,8 +536,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   );
   row += 1;
 
-  sheet.getRow(row).height = 34;
-  sheet.getRow(row + 1).height = 34;
   labeledBlock(
     sheet,
     row,
@@ -503,7 +565,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   );
   row += 2;
 
-  sheet.getRow(row).height = 36;
   labeledBlock(
     sheet,
     row,
@@ -540,7 +601,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   ] as const;
 
   for (let i = 0; i < sectoral.length; i += 2) {
-    sheet.getRow(row).height = 28;
     labeledBlock(sheet, row, 1, row, 6, sectoral[i][0], getValue(data, sectoral[i][1]));
     labeledBlock(
       sheet,
@@ -569,12 +629,14 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     { italic: true, size: 8 },
   );
 
+  sheet.getRow(row).height = 40;
   mergeSet(sheet, row, 1, row, 3, "B.7.1 Product*", {
     bold: true,
     size: 9,
     fill: HEADER_FILL,
     align: "center",
     valign: "middle",
+    wrap: true,
   });
   mergeSet(sheet, row, 4, row, 6, "B.7.2 Type of Product*", {
     bold: true,
@@ -582,6 +644,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     fill: HEADER_FILL,
     align: "center",
     valign: "middle",
+    wrap: true,
   });
   mergeSet(sheet, row, 7, row, 8, "B.7.3 Quantity*", {
     bold: true,
@@ -589,6 +652,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     fill: HEADER_FILL,
     align: "center",
     valign: "middle",
+    wrap: true,
   });
   mergeSet(sheet, row, 9, row, 10, "B.7.4 Unit*", {
     bold: true,
@@ -596,6 +660,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     fill: HEADER_FILL,
     align: "center",
     valign: "middle",
+    wrap: true,
   });
   mergeSet(sheet, row, 11, row, 12, "B.7.5 Market Value (in PhP)*", {
     bold: true,
@@ -603,6 +668,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     fill: HEADER_FILL,
     align: "center",
     valign: "middle",
+    wrap: true,
   });
   row += 1;
 
@@ -617,10 +683,11 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     totalQty += Number(quantity) || 0;
     totalMv += Number(marketValue) || 0;
 
-    mergeSet(sheet, row, 1, row, 3, product, { size: 9 });
-    mergeSet(sheet, row, 4, row, 6, type, { size: 9 });
+    sheet.getRow(row).height = Math.max(sheet.getRow(row).height ?? 15, 20);
+    mergeSet(sheet, row, 1, row, 3, product, { size: 9, wrap: true });
+    mergeSet(sheet, row, 4, row, 6, type, { size: 9, wrap: true });
     mergeSet(sheet, row, 7, row, 8, quantity, { size: 9, align: "right" });
-    mergeSet(sheet, row, 9, row, 10, unit, { size: 9 });
+    mergeSet(sheet, row, 9, row, 10, unit, { size: 9, wrap: true });
     mergeSet(sheet, row, 11, row, 12, marketValue, { size: 9, align: "right" });
     row += 1;
   }
@@ -718,6 +785,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     { bold: true, size: 10, fill: LIGHT_FILL },
   );
 
+  sheet.getRow(row).height = Math.max(sheet.getRow(row).height ?? 15, 36);
   mergeSet(sheet, row, 1, row, 5, "Procurement Type", {
     bold: true,
     size: 9,
@@ -848,11 +916,14 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     row,
     "STEP 3: AVAILABLE REGISTRATIONS/DOCUMENTS (This will be uploaded to the EPAHP DMS)",
   );
-  sheet.getRow(row).height = 34;
   const docText = DOCUMENTS.map(
     (doc) => `${mark(isChecked(data, doc.name))} ${doc.label}`,
   ).join("     ");
-  mergeSet(sheet, row, 1, row, COLS, docText, { size: 10, valign: "middle" });
+  mergeSet(sheet, row, 1, row, COLS, docText, {
+    size: 10,
+    valign: "top",
+    wrap: true,
+  });
   row += 1;
 
   // Step 4
@@ -1081,11 +1152,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
       ),
     ].join("\n");
 
-    sheet.getRow(agencyStart).height = 22;
-    for (let r = 1; r < agencyRowCount; r += 1) {
-      sheet.getRow(agencyStart + r).height = 18;
-    }
-
     mergeSet(
       sheet,
       agencyStart,
@@ -1160,9 +1226,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
       valign: "top",
     });
     finCol = endCol + 1;
-  }
-  for (let r = 0; r < 4; r += 1) {
-    sheet.getRow(finStart + r).height = 18;
   }
   row = finStart + 4;
 
@@ -1313,9 +1376,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
         size: 8,
         valign: "top",
       });
-    }
-    for (let r = 0; r < 5; r += 1) {
-      sheet.getRow(blockStart + r).height = 16;
     }
     row = blockStart + 5;
   }
@@ -1499,9 +1559,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   row = issuesHeader + 1;
 
   const issuesBody = row;
-  for (let r = 0; r < 6; r += 1) {
-    sheet.getRow(issuesBody + r).height = 18;
-  }
   mergeSet(
     sheet,
     issuesBody,
@@ -1622,9 +1679,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
           : "";
 
   const assessBody = row;
-  for (let r = 0; r < 5; r += 1) {
-    sheet.getRow(assessBody + r).height = 18;
-  }
   mergeSet(sheet, assessBody, 1, assessBody + 4, 4, statusLabel, {
     size: 10,
     valign: "top",
@@ -1687,9 +1741,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   });
 
   const narrativeStart = row;
-  for (let r = 0; r < 4; r += 1) {
-    sheet.getRow(narrativeStart + r).height = 18;
-  }
   mergeSet(
     sheet,
     narrativeStart,
@@ -1739,9 +1790,6 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   });
 
   const validatorStart = row;
-  for (let r = 0; r < 5; r += 1) {
-    sheet.getRow(validatorStart + r).height = 18;
-  }
   mergeSet(
     sheet,
     validatorStart,

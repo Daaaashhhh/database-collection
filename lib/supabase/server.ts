@@ -8,7 +8,13 @@ export function getSupabaseServerClient() {
 
   if (!url || !anonKey) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. Add them to .env.local and Vercel.",
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY on the server. Add both in Vercel → Project → Settings → Environment Variables (Production), then Redeploy.",
+    );
+  }
+
+  if (!url.startsWith("https://") || !url.includes(".supabase.co")) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL looks invalid. Expected https://YOUR_PROJECT.supabase.co",
     );
   }
 

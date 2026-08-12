@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { exportCboExcelAction } from "@/lib/actions/export-cbo-excel";
 import {
   saveCboRecordAction,
@@ -12,6 +11,10 @@ import {
   applyPayloadToForm,
   payloadToFormData,
 } from "@/lib/cbo/payload-to-form";
+import {
+  SaveResultModal,
+  type SaveModalState,
+} from "@/components/forms/cbo/save-result-modal";
 
 function downloadBase64Excel(base64: string, filename: string) {
   const binary = atob(base64);
@@ -699,8 +702,13 @@ export function CboInformationSheet({
   const [exporting, setExporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
-  const [saveMessage, setSaveMessage] = useState("");
-  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+  const [saveModal, setSaveModal] = useState<SaveModalState>({
+    open: false,
+    ok: false,
+    title: "",
+    message: "",
+    recordId: null,
+  });
   const readOnly = mode === "view";
 
   useEffect(() => {
@@ -708,24 +716,82 @@ export function CboInformationSheet({
     applyPayloadToForm(formRef.current, initialData);
   }, [initialData]);
 
+  async function persistRecord(formData: FormData) {
+    return mode === "edit" && recordId
+      ? updateCboRecordAction(recordId, formData)
+      : saveCboRecordAction(formData);
+  }
+
   async function handleDownloadExcel() {
     setExporting(true);
     setExportMessage("");
 
     try {
-      const formData =
-        readOnly && initialData
-          ? payloadToFormData(initialData)
-          : formRef.current
-            ? new FormData(formRef.current)
-            : null;
-      if (!formData) return;
-      const result = await exportCboExcelAction(formData);
-      downloadBase64Excel(result.base64, result.filename);
-      setExportMessage("Excel file downloaded.");
+      // View mode: already saved — download only.
+      if (readOnly) {
+        if (!initialData) return;
+        const formData = payloadToFormData(initialData);
+        const excel = await exportCboExcelAction(formData);
+        downloadBase64Excel(excel.base64, excel.filename);
+        setExportMessage("Excel file downloaded.");
+        return;
+      }
+
+      if (!formRef.current) return;
+      const formData = new FormData(formRef.current);
+
+      // Create/edit: save first, then download.
+      const saveResult = await persistRecord(formData);
+      if (!saveResult.ok) {
+        setSaveModal({
+          open: true,
+          ok: false,
+          title: mode === "edit" ? "Update failed" : "Save failed",
+          message: `${saveResult.message} Excel was not downloaded.`,
+          recordId: null,
+        });
+        return;
+      }
+
+      try {
+        const excel = await exportCboExcelAction(formData);
+        downloadBase64Excel(excel.base64, excel.filename);
+        setSaveModal({
+          open: true,
+          ok: true,
+          title:
+            mode === "edit"
+              ? "Updated and downloaded"
+              : "Saved and downloaded",
+          message:
+            mode === "edit"
+              ? "Your changes were saved and the Excel file was downloaded."
+              : "The record was saved and the Excel file was downloaded.",
+          recordId: saveResult.id,
+        });
+      } catch (excelError) {
+        console.error(excelError);
+        setSaveModal({
+          open: true,
+          ok: true,
+          title: mode === "edit" ? "Updated (Excel failed)" : "Saved (Excel failed)",
+          message:
+            "The record was saved, but the Excel file could not be generated. You can try Download Excel again.",
+          recordId: saveResult.id,
+        });
+      }
     } catch (error) {
       console.error(error);
-      setExportMessage("Could not generate Excel. Please try again.");
+      setSaveModal({
+        open: true,
+        ok: false,
+        title: "Download failed",
+        message:
+          mode === "edit"
+            ? "Could not update the record or download Excel. Please try again."
+            : "Could not save the record or download Excel. Please try again.",
+        recordId: null,
+      });
     } finally {
       setExporting(false);
     }
@@ -735,32 +801,42 @@ export function CboInformationSheet({
     if (!formRef.current || readOnly) return;
 
     setSaving(true);
-    setSaveMessage("");
-    setSavedRecordId(null);
 
     try {
       const formData = new FormData(formRef.current);
-      const result =
-        mode === "edit" && recordId
-          ? await updateCboRecordAction(recordId, formData)
-          : await saveCboRecordAction(formData);
+      const result = await persistRecord(formData);
       if (result.ok) {
-        setSavedRecordId(result.id);
-        setSaveMessage(
-          mode === "edit"
-            ? "Record updated successfully."
-            : "Record saved successfully.",
-        );
+        setSaveModal({
+          open: true,
+          ok: true,
+          title: mode === "edit" ? "Update successful" : "Saved successfully",
+          message:
+            mode === "edit"
+              ? "Your changes were saved to the database."
+              : "The CBO information sheet was saved to the database.",
+          recordId: result.id,
+        });
       } else {
-        setSaveMessage(result.message);
+        setSaveModal({
+          open: true,
+          ok: false,
+          title: mode === "edit" ? "Update failed" : "Save failed",
+          message: result.message,
+          recordId: null,
+        });
       }
     } catch (error) {
       console.error(error);
-      setSaveMessage(
-        mode === "edit"
-          ? "Could not update the record. Please try again."
-          : "Could not save the record. Please try again.",
-      );
+      setSaveModal({
+        open: true,
+        ok: false,
+        title: mode === "edit" ? "Update failed" : "Save failed",
+        message:
+          mode === "edit"
+            ? "Could not update the record. Please try again."
+            : "Could not save the record. Please try again.",
+        recordId: null,
+      });
     } finally {
       setSaving(false);
     }
@@ -2078,22 +2154,9 @@ export function CboInformationSheet({
             {readOnly
               ? "Viewing a saved record in the original form layout. Fields are read-only."
               : mode === "edit"
-                ? "Editing a saved record. Save changes updates this record in Supabase."
-                : "Save stores the record in Supabase. Download Excel is optional and independent."}
+                ? "Update saves changes. Download Excel also updates this record, then downloads the file."
+                : "Save stores the record only. Download Excel saves automatically, then downloads the file."}
           </p>
-          {saveMessage ? (
-            <p className="text-xs text-zinc-700" aria-live="polite">
-              {saveMessage}{" "}
-              {savedRecordId ? (
-                <Link
-                  href={`/records/${savedRecordId}`}
-                  className="font-medium underline underline-offset-2"
-                >
-                  View record
-                </Link>
-              ) : null}
-            </p>
-          ) : null}
           {exportMessage ? (
             <p className="text-xs text-zinc-700" aria-live="polite">
               {exportMessage}
@@ -2107,7 +2170,13 @@ export function CboInformationSheet({
             disabled={busy}
             className="h-10 rounded-md border border-zinc-300 bg-white px-5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {exporting ? "Preparing Excel…" : "Download Excel"}
+            {exporting
+              ? readOnly
+                ? "Preparing Excel…"
+                : "Saving & downloading…"
+              : readOnly
+                ? "Download Excel"
+                : "Save & Download Excel"}
           </button>
           {!readOnly ? (
             <button
@@ -2126,6 +2195,13 @@ export function CboInformationSheet({
           ) : null}
         </div>
       </div>
+
+      <SaveResultModal
+        state={saveModal}
+        onClose={() =>
+          setSaveModal((current) => ({ ...current, open: false }))
+        }
+      />
     </form>
   );
 }
