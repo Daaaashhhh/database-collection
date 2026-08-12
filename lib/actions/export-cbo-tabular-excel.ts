@@ -30,7 +30,20 @@ export async function exportAllCboTabularExcelAction(
 
   for (const record of records) {
     const flat = flattenCboRecord(record);
-    sheet.addRow(CBO_TABULAR_COLUMNS.map((column) => flat[column.key] ?? ""));
+    sheet.addRow(
+      CBO_TABULAR_COLUMNS.map((column) => {
+        const value = flat[column.key] ?? "";
+        // Keep identifiers/timestamps as-is; everything else uses N/A instead of blanks.
+        if (
+          column.key === "id" ||
+          column.key === "created_at" ||
+          column.key === "updated_at"
+        ) {
+          return value;
+        }
+        return value === "" ? "N/A" : value;
+      }),
+    );
   }
 
   const headerRow = sheet.getRow(1);
