@@ -138,7 +138,27 @@ function isChecked(data: FormData, name: string) {
   return data.has(name);
 }
 
-const PROCUREMENT_KEYS = [
+export const CBO_PRODUCTION_ROW_COUNT = 8;
+export const CBO_INTERVENTION_ROW_COUNT = 10;
+
+export const CBO_DOCUMENT_KEYS = [
+  "board_resolution",
+  "registration_certificate",
+  "business_permit",
+  "bank_account_certificate",
+  "bir_certificate",
+] as const;
+
+export const CBO_SECTORAL_KEYS = [
+  "general_public",
+  "senior_citizen",
+  "pwd",
+  "ip",
+  "solo_parents",
+  "four_ps_member",
+] as const;
+
+export const CBO_PROCUREMENT_KEYS = [
   "competitive_bidding",
   "negotiated_community_participation",
   "direct_contracting",
@@ -147,7 +167,7 @@ const PROCUREMENT_KEYS = [
   "others",
 ] as const;
 
-const REGISTRATION_AGENCIES: Record<string, string[]> = {
+export const CBO_REGISTRATION_AGENCIES: Record<string, string[]> = {
   dti: [
     "territorial_scope",
     "registry_no",
@@ -169,7 +189,7 @@ const REGISTRATION_AGENCIES: Record<string, string[]> = {
   cso: ["agency_issuer", "registry_no", "date_of_issuance", "date_of_validity"],
 };
 
-const FINANCIAL_ITEMS: Record<string, string[]> = {
+export const CBO_FINANCIAL_ITEMS: Record<string, string[]> = {
   dole: ["registry_no", "date_of_issuance", "date_of_validity"],
   bank_book: [],
   afs: ["year"],
@@ -177,7 +197,7 @@ const FINANCIAL_ITEMS: Record<string, string[]> = {
   sales_invoice: [],
 };
 
-const ADDITIONAL_ITEMS: Record<string, string[]> = {
+export const CBO_ADDITIONAL_ITEMS: Record<string, string[]> = {
   business_permit: ["registry_no", "date_of_issuance", "date_of_validity"],
   ffedis: ["registry_no", "date_of_issuance", "date_of_validity"],
   bir: [
@@ -267,7 +287,7 @@ export function parseCboFormData(data: FormData): CboFormPayload {
   }
 
   const procurement: Record<string, ProcurementRowPayload> = {};
-  for (const key of PROCUREMENT_KEYS) {
+  for (const key of CBO_PROCUREMENT_KEYS) {
     procurement[key] = {
       selected: isChecked(data, `procurement_${key}_selected`),
       other:
@@ -284,7 +304,7 @@ export function parseCboFormData(data: FormData): CboFormPayload {
   }
 
   const registrations: Record<string, AgencyRegistrationPayload> = {};
-  for (const [key, fields] of Object.entries(REGISTRATION_AGENCIES)) {
+  for (const [key, fields] of Object.entries(CBO_REGISTRATION_AGENCIES)) {
     const fieldValues: Record<string, string> = {};
     for (const field of fields) {
       fieldValues[field] = getString(data, `registration_${key}_${field}`);
@@ -390,8 +410,8 @@ export function parseCboFormData(data: FormData): CboFormPayload {
       "legal_certificate_of_registration",
     ),
     registrations,
-    financial: parseChecklistGroup(data, "financial", FINANCIAL_ITEMS),
-    additional: parseChecklistGroup(data, "additional", ADDITIONAL_ITEMS),
+    financial: parseChecklistGroup(data, "financial", CBO_FINANCIAL_ITEMS),
+    additional: parseChecklistGroup(data, "additional", CBO_ADDITIONAL_ITEMS),
 
     intervention,
 

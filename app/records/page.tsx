@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DownloadAllRecordsButton } from "@/components/records/download-all-records-button";
 import { RecordsSearch } from "@/components/records/records-search";
 import { DeleteRecordButton } from "@/components/records/delete-record-button";
 import { listCboRecords } from "@/lib/cbo/queries";
@@ -63,10 +64,18 @@ export default async function RecordsPage({ searchParams }: RecordsPageProps) {
         </h1>
         <p className="mt-2 text-sm text-zinc-600">
           Search, view (read), edit, or delete saved CBO information sheets.
+          Use <strong className="font-medium">Download all (columns)</strong> for
+          a spreadsheet with one row per CBO.
         </p>
 
-        <div className="mt-6">
-          <RecordsSearch initialQuery={q} />
+        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex-1">
+            <RecordsSearch initialQuery={q} />
+          </div>
+          <DownloadAllRecordsButton
+            searchQuery={q}
+            disabled={Boolean(errorMessage)}
+          />
         </div>
 
         {errorMessage ? (
