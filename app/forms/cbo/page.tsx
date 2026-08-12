@@ -16,7 +16,16 @@ export default function CboFormPage() {
           >
             ← Database Collection
           </Link>
-          <span className="text-sm text-zinc-500">Steps 1–5 · UI only</span>
+          <div className="flex items-center gap-3 text-sm">
+            <Link
+              href="/records"
+              className="font-medium text-zinc-600 transition hover:text-zinc-900"
+            >
+              Saved records
+            </Link>
+            <span className="text-zinc-400">·</span>
+            <span className="text-zinc-500">Save + Excel</span>
+          </div>
         </div>
       </header>
 

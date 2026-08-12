@@ -1,7 +1,17 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { exportCboExcelAction } from "@/lib/actions/export-cbo-excel";
+import {
+  saveCboRecordAction,
+  updateCboRecordAction,
+} from "@/lib/actions/save-cbo-record";
+import type { CboFormPayload } from "@/lib/cbo/parse-form-data";
+import {
+  applyPayloadToForm,
+  payloadToFormData,
+} from "@/lib/cbo/payload-to-form";
 
 function downloadBase64Excel(base64: string, filename: string) {
   const binary = atob(base64);
@@ -204,14 +214,29 @@ function emptyProcurementRow(): ProcurementRowState {
   };
 }
 
-function ProcurementExperienceTable() {
-  const [noExperience, setNoExperience] = useState(false);
+function ProcurementExperienceTable({
+  initialData,
+}: {
+  initialData?: CboFormPayload;
+}) {
+  const [noExperience, setNoExperience] = useState(
+    () => initialData?.procurement_no_experience ?? false,
+  );
   const [rows, setRows] = useState<Record<string, ProcurementRowState>>(() => {
     const initial: Record<string, ProcurementRowState> = {};
     for (const row of PROCUREMENT_ROWS) {
       if (row.kind === "header") continue;
-      initial[row.key] = emptyProcurementRow();
-      if (row.kind === "others") {
+      const saved = initialData?.procurement?.[row.key];
+      initial[row.key] = saved
+        ? {
+            selected: saved.selected,
+            participation: saved.participation,
+            contractsWon: saved.contracts_won,
+            successfulImplementation: saved.successful_implementation,
+            otherText: saved.other ?? "",
+          }
+        : emptyProcurementRow();
+      if (row.kind === "others" && !saved) {
         initial[row.key].otherText = "";
       }
     }
@@ -368,10 +393,25 @@ function ProcurementExperienceTable() {
   );
 }
 
-function AnnualProductionTable() {
-  const [rows, setRows] = useState<ProductionRow[]>(() =>
-    Array.from({ length: PRODUCTION_ROW_COUNT }, emptyProductionRow),
-  );
+function AnnualProductionTable({
+  initialData,
+}: {
+  initialData?: CboFormPayload;
+}) {
+  const [rows, setRows] = useState<ProductionRow[]>(() => {
+    const base = Array.from({ length: PRODUCTION_ROW_COUNT }, emptyProductionRow);
+    const saved = initialData?.production ?? [];
+    for (let i = 0; i < Math.min(saved.length, PRODUCTION_ROW_COUNT); i += 1) {
+      base[i] = {
+        product: saved[i].product,
+        type: saved[i].type,
+        quantity: saved[i].quantity,
+        unit: saved[i].unit,
+        marketValue: saved[i].market_value,
+      };
+    }
+    return base;
+  });
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -500,19 +540,186 @@ function AnnualProductionTable() {
   );
 }
 
-export function CboInformationSheet() {
+const INTERVENTION_ROW_COUNT = 10;
+
+type InterventionRow = {
+  partnerAgency: string;
+  intervention: string;
+  ppas: string;
+  amount: string;
+  dateReceived: string;
+};
+
+function emptyInterventionRow(): InterventionRow {
+  return {
+    partnerAgency: "",
+    intervention: "",
+    ppas: "",
+    amount: "",
+    dateReceived: "",
+  };
+}
+
+function InterventionReceivedTable({
+  initialData,
+}: {
+  initialData?: CboFormPayload;
+}) {
+  const [rows, setRows] = useState<InterventionRow[]>(() => {
+    const base = Array.from(
+      { length: INTERVENTION_ROW_COUNT },
+      emptyInterventionRow,
+    );
+    const saved = initialData?.intervention ?? [];
+    for (let i = 0; i < Math.min(saved.length, INTERVENTION_ROW_COUNT); i += 1) {
+      base[i] = {
+        partnerAgency: saved[i].partner_agency,
+        intervention: saved[i].intervention,
+        ppas: saved[i].ppas,
+        amount: saved[i].amount,
+        dateReceived: saved[i].date_received,
+      };
+    }
+    return base;
+  });
+
+  function updateRow(
+    index: number,
+    field: keyof InterventionRow,
+    value: string,
+  ) {
+    setRows((current) =>
+      current.map((row, i) => (i === index ? { ...row, [field]: value } : row)),
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[860px] border-collapse text-[12px]">
+        <thead>
+          <tr className="bg-[var(--form-header)]">
+            <th className="border border-black px-2 py-2 text-center font-bold uppercase">
+              Partner Agency/Stakeholder
+            </th>
+            <th className="border border-black px-2 py-2 text-center font-bold uppercase">
+              Intervention
+              <span className="mt-1 block text-[10px] font-normal normal-case italic leading-snug">
+                (e.g., livelihood assistance, training, equipment, or other
+                support provided under the program)
+              </span>
+            </th>
+            <th className="border border-black px-2 py-2 text-center font-bold uppercase">
+              PPAs
+            </th>
+            <th className="border border-black px-2 py-2 text-center font-bold uppercase">
+              Amount (PhP)
+              <span className="mt-1 block text-[10px] font-normal normal-case italic leading-snug">
+                (for fund assistance only)
+              </span>
+            </th>
+            <th className="border border-black px-2 py-2 text-center font-bold uppercase">
+              Date Received
+              <span className="mt-1 block text-[10px] font-normal normal-case italic leading-snug">
+                (Indicate the date when the beneficiaries received the
+                intervention.)
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              <td className="border border-black p-1">
+                <input
+                  name={`intervention[${index}][partner_agency]`}
+                  value={row.partnerAgency}
+                  onChange={(e) =>
+                    updateRow(index, "partnerAgency", e.target.value)
+                  }
+                  className="h-8 w-full bg-transparent px-1 text-[12.5px] outline-none"
+                />
+              </td>
+              <td className="border border-black p-1">
+                <input
+                  name={`intervention[${index}][intervention]`}
+                  value={row.intervention}
+                  onChange={(e) =>
+                    updateRow(index, "intervention", e.target.value)
+                  }
+                  className="h-8 w-full bg-transparent px-1 text-[12.5px] outline-none"
+                />
+              </td>
+              <td className="border border-black p-1">
+                <input
+                  name={`intervention[${index}][ppas]`}
+                  value={row.ppas}
+                  onChange={(e) => updateRow(index, "ppas", e.target.value)}
+                  className="h-8 w-full bg-transparent px-1 text-[12.5px] outline-none"
+                />
+              </td>
+              <td className="border border-black p-1">
+                <input
+                  name={`intervention[${index}][amount]`}
+                  type="number"
+                  inputMode="decimal"
+                  value={row.amount}
+                  onChange={(e) => updateRow(index, "amount", e.target.value)}
+                  className="h-8 w-full bg-transparent px-1 text-[12.5px] outline-none"
+                />
+              </td>
+              <td className="border border-black p-1">
+                <input
+                  name={`intervention[${index}][date_received]`}
+                  type="date"
+                  value={row.dateReceived}
+                  onChange={(e) =>
+                    updateRow(index, "dateReceived", e.target.value)
+                  }
+                  className="h-8 w-full bg-transparent px-1 text-[12.5px] outline-none"
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function CboInformationSheet({
+  mode = "create",
+  initialData,
+  recordId,
+}: {
+  mode?: "create" | "view" | "edit";
+  initialData?: CboFormPayload;
+  recordId?: string;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+  const readOnly = mode === "view";
+
+  useEffect(() => {
+    if (!initialData || !formRef.current) return;
+    applyPayloadToForm(formRef.current, initialData);
+  }, [initialData]);
 
   async function handleDownloadExcel() {
-    if (!formRef.current) return;
-
     setExporting(true);
     setExportMessage("");
 
     try {
-      const formData = new FormData(formRef.current);
+      const formData =
+        readOnly && initialData
+          ? payloadToFormData(initialData)
+          : formRef.current
+            ? new FormData(formRef.current)
+            : null;
+      if (!formData) return;
       const result = await exportCboExcelAction(formData);
       downloadBase64Excel(result.base64, result.filename);
       setExportMessage("Excel file downloaded.");
@@ -524,16 +731,56 @@ export function CboInformationSheet() {
     }
   }
 
+  async function handleSave() {
+    if (!formRef.current || readOnly) return;
+
+    setSaving(true);
+    setSaveMessage("");
+    setSavedRecordId(null);
+
+    try {
+      const formData = new FormData(formRef.current);
+      const result =
+        mode === "edit" && recordId
+          ? await updateCboRecordAction(recordId, formData)
+          : await saveCboRecordAction(formData);
+      if (result.ok) {
+        setSavedRecordId(result.id);
+        setSaveMessage(
+          mode === "edit"
+            ? "Record updated successfully."
+            : "Record saved successfully.",
+        );
+      } else {
+        setSaveMessage(result.message);
+      }
+    } catch (error) {
+      console.error(error);
+      setSaveMessage(
+        mode === "edit"
+          ? "Could not update the record. Please try again."
+          : "Could not save the record. Please try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const busy = exporting || saving;
+
   return (
     <form
       ref={formRef}
       className="overflow-hidden border border-black bg-white shadow-[0_8px_30px_rgba(24,24,27,0.08)]"
       onSubmit={(e) => {
         e.preventDefault();
-        void handleDownloadExcel();
+        if (!readOnly) {
+          void handleSave();
+        }
       }}
       noValidate
     >
+      <fieldset disabled={readOnly} className="min-w-0 border-0 p-0">
       {/* Header */}
       <div className="grid grid-cols-[auto_1fr] gap-4 border-b border-black p-4 sm:gap-6 sm:p-5">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -959,7 +1206,7 @@ export function CboInformationSheet() {
           hint="(Estimated quantity and market value of the organization's primary product/s and service/s. Use a separate paper if more than the provided space.)"
         />
         <div className="mt-3">
-          <AnnualProductionTable />
+          <AnnualProductionTable initialData={initialData} />
         </div>
       </div>
 
@@ -1024,7 +1271,7 @@ export function CboInformationSheet() {
           hint="(Range: last 2 years) Please check (✓) all that applies"
         />
         <div className="mt-3">
-          <ProcurementExperienceTable />
+          <ProcurementExperienceTable initialData={initialData} />
         </div>
       </div>
 
@@ -1191,7 +1438,7 @@ export function CboInformationSheet() {
       <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-center text-[12.5px] font-bold uppercase tracking-wide text-black">
         Step 5: EPAHP Digital Mapping System Certification
       </div>
-      <div className="grid md:grid-cols-[1.6fr_1fr]">
+      <div className="grid border-b border-black md:grid-cols-[1.6fr_1fr]">
         <div className="border-b border-black p-3 text-[11.5px] leading-relaxed text-black md:border-b-0 md:border-r md:p-4">
           <p>
             I hereby affirm that the information provided is accurate to the
@@ -1229,12 +1476,624 @@ export function CboInformationSheet() {
         </div>
       </div>
 
+      {/* C. NP-CP Requirement Checklist */}
+      <SectionHeader>C. NP-CP Requirement Checklist</SectionHeader>
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
+        I. Legal Requirements
+      </div>
+      <div className="border-b border-black bg-[#d9e8cb] px-3 py-2">
+        <label className="inline-flex items-center gap-2 text-[12.5px] font-bold text-black">
+          <input
+            type="checkbox"
+            name="legal_certificate_of_registration"
+            value="yes"
+            className="size-3.5 accent-black"
+          />
+          A. Certificate of Registration
+        </label>
+      </div>
+
+      <div className="grid border-b border-black md:grid-cols-4">
+        {(
+          [
+            {
+              key: "dti",
+              title: "Department of Trade and Industry (DTI)",
+              fields: [
+                { name: "territorial_scope", label: "Territorial scope" },
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "sec",
+              title: "Securities and Exchange Commission (SEC)",
+              fields: [
+                { name: "type_of_registration", label: "Type of Registration" },
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "cda",
+              title: "Cooperative Development Authority (CDA)",
+              fields: [
+                { name: "type_of_cooperative", label: "Type of Cooperative" },
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "cso",
+              title:
+                "Civil Society Organization (CSO)/ Non-government Organizations (NGO)/ Peoples' Organization (PO)",
+              fields: [
+                { name: "agency_issuer", label: "Agency issuer" },
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+          ] as const
+        ).map((agency, index) => (
+          <div
+            key={agency.key}
+            className={`border-b border-black p-3 md:border-b-0 ${
+              index < 3 ? "md:border-r" : ""
+            }`}
+          >
+            <label className="mb-3 flex items-start gap-2 text-[12px] font-bold leading-snug text-black">
+              <input
+                type="checkbox"
+                name={`registration_${agency.key}_selected`}
+                value="yes"
+                className="mt-0.5 size-3.5 shrink-0 accent-black"
+              />
+              <span>{agency.title}</span>
+            </label>
+            <div className="flex flex-col gap-2.5">
+              {agency.fields.map((field) => (
+                <label
+                  key={field.name}
+                  className="grid gap-1 text-[11.5px] text-black"
+                >
+                  <span className="font-medium">{field.label}:</span>
+                  <input
+                    name={`registration_${agency.key}_${field.name}`}
+                    type={"type" in field ? field.type : "text"}
+                    className="h-8 w-full border-0 border-b border-zinc-400 bg-transparent px-0 text-[13px] outline-none focus:border-black"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
+        II. Financial Requirements
+      </div>
+
+      <div className="grid border-b border-black sm:grid-cols-2 lg:grid-cols-5">
+        {(
+          [
+            {
+              key: "dole",
+              title:
+                "Department of Labor and Employment (DOLE) Registration under Rule 1020",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "bank_book",
+              title: "Bank book / Books of Account",
+              fields: [],
+            },
+            {
+              key: "afs",
+              title: "Updated / Audited Financial Statement (AFS)",
+              fields: [{ name: "year", label: "Year" }],
+            },
+            {
+              key: "itr",
+              title: "Latest Income Tax Return (ITR)",
+              fields: [{ name: "year", label: "Year" }],
+            },
+            {
+              key: "sales_invoice",
+              title: "Sales Invoice",
+              fields: [],
+            },
+          ] as const
+        ).map((item, index, list) => (
+          <div
+            key={item.key}
+            className={`border-b border-black p-3 lg:border-b-0 ${
+              index < list.length - 1 ? "lg:border-r" : ""
+            }`}
+          >
+            <label className="mb-2 flex items-start gap-2 text-[12px] font-bold leading-snug text-black">
+              <input
+                type="checkbox"
+                name={`financial_${item.key}_selected`}
+                value="yes"
+                className="mt-0.5 size-3.5 shrink-0 accent-black"
+              />
+              <span>{item.title}</span>
+            </label>
+            {item.fields.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {item.fields.map((field) => (
+                  <label
+                    key={field.name}
+                    className="grid gap-1 text-[11.5px] text-black"
+                  >
+                    <span className="font-medium">{field.label}:</span>
+                    <input
+                      name={`financial_${item.key}_${field.name}`}
+                      type={"type" in field ? field.type : "text"}
+                      className="h-8 w-full border-0 border-b border-zinc-400 bg-transparent px-0 text-[13px] outline-none focus:border-black"
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
+        III. Additional Registrations/Accreditations
+      </div>
+
+      <div className="grid border-b border-black sm:grid-cols-2 lg:grid-cols-4">
+        {(
+          [
+            {
+              key: "business_permit",
+              title: "Business Permit (Mayor's Permit)",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "ffedis",
+              title:
+                "Farmers and Fisherfolk Enterprise Development Information System (FFEDIS)",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "bir",
+              title: "BIR Registration",
+              fields: [
+                { name: "type_of_bir_registration", label: "Type of BIR Registration" },
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "philgeps",
+              title: "Philippine Government Electronic Procurement (PhilGEPS)",
+              fields: [
+                { name: "type_of_registration", label: "Type of Registration" },
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "rsbsa",
+              title:
+                "Registry System for Basic Sectors in Agriculture (RSBSA)",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "fish_ar",
+              title: "Fisherfolk Registration (FISH-AR)",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "fda",
+              title: "Food and Drug Administration (FDA)",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "arbo",
+              title: "Agrarian Reform Beneficiaries Organizations",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "farmers_association",
+              title: "Farmers' Association",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "irrigators_association",
+              title: "Irrigators Association",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "labor_unions",
+              title: "Labor Unions and Workers' Association",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+            {
+              key: "slpa",
+              title: "Sustainable Livelihood Program Associations",
+              fields: [
+                { name: "registry_no", label: "Registry No." },
+                { name: "date_of_issuance", label: "Date of Issuance", type: "date" },
+                { name: "date_of_validity", label: "Date of Validity", type: "date" },
+              ],
+            },
+          ] as const
+        ).map((item, index) => (
+          <div
+            key={item.key}
+            className={`border-b border-black p-3 ${
+              index % 4 !== 3 ? "lg:border-r" : ""
+            } ${index < 8 ? "lg:border-b" : "lg:border-b-0"}`}
+          >
+            <label className="mb-2 flex items-start gap-2 text-[12px] font-bold leading-snug text-black">
+              <input
+                type="checkbox"
+                name={`additional_${item.key}_selected`}
+                value="yes"
+                className="mt-0.5 size-3.5 shrink-0 accent-black"
+              />
+              <span>{item.title}</span>
+            </label>
+            <div className="flex flex-col gap-2">
+              {item.fields.map((field) => (
+                <label
+                  key={field.name}
+                  className="grid gap-1 text-[11.5px] text-black"
+                >
+                  <span className="font-medium">{field.label}:</span>
+                  <input
+                    name={`additional_${item.key}_${field.name}`}
+                    type={"type" in field ? field.type : "text"}
+                    className="h-8 w-full border-0 border-b border-zinc-400 bg-transparent px-0 text-[13px] outline-none focus:border-black"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
+        IV. Intervention Received
+      </div>
+      <div className="border-b border-black p-3 md:p-4">
+        <InterventionReceivedTable initialData={initialData} />
+      </div>
+
+      {/* V. Issues, Actions and Recommendations */}
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
+        V. Issues, Actions and Recommendations (Use a separate sheet if space
+        is insufficient.)
+      </div>
+      <div className="grid border-b border-black md:grid-cols-3">
+        <div className="flex flex-col border-b border-black md:border-b-0 md:border-r">
+          <div className="border-b border-black bg-[var(--form-header)] px-3 py-2">
+            <p className="text-[12px] font-bold uppercase text-black">
+              Issues and Concerns/Challenges
+              <RequiredMark />
+            </p>
+            <p className="mt-1 text-[10px] italic leading-snug text-zinc-700">
+              To be accomplished by the CBO, focusing on documentation and
+              requirements, capacity to supply, production capacity, and
+              supplier&apos;s experience.
+            </p>
+          </div>
+          <textarea
+            name="issues_concerns_challenges"
+            rows={8}
+            className="min-h-40 w-full flex-1 resize-y border-0 bg-white px-3 py-2 text-[13px] outline-none"
+          />
+        </div>
+        <div className="flex flex-col border-b border-black md:border-b-0 md:border-r">
+          <div className="border-b border-black bg-[var(--form-header)] px-3 py-2">
+            <p className="text-[12px] font-bold uppercase text-black">
+              Action Taken
+              <RequiredMark />
+            </p>
+            <p className="mt-1 text-[10px] italic leading-snug text-zinc-700">
+              (Actions undertaken by the CBO to address the issues or
+              challenges)
+            </p>
+          </div>
+          <textarea
+            name="action_taken"
+            rows={8}
+            className="min-h-40 w-full flex-1 resize-y border-0 bg-white px-3 py-2 text-[13px] outline-none"
+          />
+        </div>
+        <div className="flex flex-col">
+          <div className="border-b border-black bg-[var(--form-header)] px-3 py-2">
+            <p className="text-[12px] font-bold uppercase text-black">
+              Recommendation
+              <RequiredMark />
+            </p>
+            <p className="mt-1 text-[10px] italic leading-snug text-zinc-700">
+              (Suggestions or recommendations provided by the RPMO&apos;s)
+            </p>
+          </div>
+          <textarea
+            name="recommendation"
+            rows={8}
+            className="min-h-40 w-full flex-1 resize-y border-0 bg-white px-3 py-2 text-[13px] outline-none"
+          />
+        </div>
+      </div>
+
+      {/* VI. CBO Assessment */}
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
+        VI. CBO Assessment
+        <RequiredMark />{" "}
+        <span className="font-normal normal-case italic">
+          (Kindly provide the details of the assessment of the CBO along with a
+          narrative justification).
+        </span>
+      </div>
+      <div className="grid border-b border-black lg:grid-cols-4">
+        <div className="flex flex-col border-b border-black lg:border-b-0 lg:border-r">
+          <div className="border-b border-black bg-[var(--form-header)] px-3 py-2">
+            <p className="text-[12px] font-bold text-black">
+              CBO Assessment Status (Provide preliminary assessment of the CBO)
+              <RequiredMark />
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4 text-[10px] italic leading-snug text-zinc-700">
+              <li>
+                Qualified CBOs are those who completed all of their requirements
+                in order to participate in the procurement process and
+                subsequently have the ability to supply to institutional markets.
+              </li>
+              <li>
+                Semi-qualified CBOs are those CBOs who have incomplete
+                requirements.
+              </li>
+              <li>
+                Not Qualified CBOs are those without existing requirements during
+                their latest validation (i.e newly organized SLPAs).
+              </li>
+            </ol>
+          </div>
+          <div className="flex flex-col gap-2 px-3 py-3">
+            <CheckboxOption
+              type="radio"
+              name="cbo_assessment_status"
+              value="qualified"
+              label="Qualified"
+            />
+            <CheckboxOption
+              type="radio"
+              name="cbo_assessment_status"
+              value="semi_qualified"
+              label="Semi-qualified"
+            />
+            <CheckboxOption
+              type="radio"
+              name="cbo_assessment_status"
+              value="not_qualified"
+              label="Not Qualified"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col border-b border-black lg:border-b-0 lg:border-r">
+          <div className="border-b border-black bg-[var(--form-header)] px-3 py-2">
+            <p className="text-[12px] font-bold text-black">
+              Remarks in terms of CBO Assessment
+              <RequiredMark />
+            </p>
+            <p className="mt-1 text-[10px] italic leading-snug text-zinc-700">
+              (indicate the specific reason why the CBO assessment is semi
+              qualified or not qualified)
+            </p>
+          </div>
+          <textarea
+            name="cbo_assessment_remarks"
+            rows={8}
+            className="min-h-40 w-full flex-1 resize-y border-0 bg-white px-3 py-2 text-[13px] outline-none"
+          />
+        </div>
+        <div className="flex flex-col border-b border-black lg:border-b-0 lg:border-r">
+          <div className="border-b border-black bg-[var(--form-header)] px-3 py-2">
+            <p className="text-[12px] font-bold text-black">
+              Date of Assessment
+              <RequiredMark />
+            </p>
+            <p className="mt-1 text-[10px] italic leading-snug text-zinc-700">
+              (Identify the specific date the RPMO/RCT provided the result of
+              the preliminary assessment)
+            </p>
+          </div>
+          <div className="px-3 py-3">
+            <TextInput name="date_of_assessment" type="date" />
+          </div>
+        </div>
+        <div className="flex flex-col">
+          <div className="border-b border-black bg-[var(--form-header)] px-3 py-2">
+            <p className="text-[12px] font-bold text-black">
+              Remarks
+              <RequiredMark />
+            </p>
+            <p className="mt-1 text-[10px] italic leading-snug text-zinc-700">
+              (Input other relevant information on the CBO)
+            </p>
+          </div>
+          <textarea
+            name="cbo_other_remarks"
+            rows={8}
+            className="min-h-40 w-full flex-1 resize-y border-0 bg-white px-3 py-2 text-[13px] outline-none"
+          />
+        </div>
+      </div>
+
+      {/* RCT Deliberation + Narrative */}
+      <div className="border-b border-black p-3 md:p-4">
+        <p className="text-[12px] italic text-zinc-700">
+          Kindly check and provide the result of the assessment of the CBO along
+          with a narrative justification
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:gap-8">
+          <CheckboxOption
+            type="radio"
+            name="rct_deliberation"
+            value="recommended"
+            label="RECOMMENDED FOR RCT DELIBERATION"
+          />
+          <CheckboxOption
+            type="radio"
+            name="rct_deliberation"
+            value="not_recommended"
+            label="NOT RECOMMENDED FOR RCT DELIBERATION"
+          />
+        </div>
+        <p className="mt-4 text-[12.5px] font-bold uppercase text-black">
+          Narrative:
+        </p>
+        <textarea
+          name="assessment_narrative"
+          rows={5}
+          className="mt-2 w-full resize-y border border-zinc-300 bg-white px-3 py-2 text-[13px] outline-none focus:border-black"
+        />
+      </div>
+
+      {/* Others - if qualified */}
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-[12.5px] font-bold uppercase tracking-wide text-black">
+        Others{" "}
+        <span className="font-normal normal-case italic">
+          (if the CBO deemed as qualified)
+        </span>
+      </div>
+      <div className="border-b border-black p-3 md:p-4">
+        <FieldLabel
+          title="Date Confirmed as EPAHP Qualified CBO"
+          required
+          hint="(Provide the date of confirmation as qualified CBO)"
+        />
+        <TextInput name="date_confirmed_epahp_qualified" type="date" />
+      </div>
+
+      {/* Validators */}
+      <div className="border-b border-black bg-[var(--form-header)] px-3 py-2 text-center text-[12.5px] font-bold uppercase tracking-wide text-black">
+        Validators
+      </div>
+      <div className="grid border-b border-black md:grid-cols-[1.2fr_1.2fr_0.6fr]">
+        <div className="flex min-h-36 flex-col justify-end border-b border-black p-4 md:border-b-0 md:border-r">
+          <p className="mb-auto text-[12.5px] font-bold text-black">
+            Validate by:
+          </p>
+          <input
+            name="validator_field_pdo_name"
+            type="text"
+            className="mt-8 h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
+            aria-label="Signature over Printed Name of Field Validator (PDO)"
+          />
+          <p className="mt-2 text-center text-[11px] text-black">
+            Signature over Printed Name of Field Validator (PDO)
+          </p>
+        </div>
+        <div className="flex min-h-36 flex-col justify-end border-b border-black p-4 md:border-b-0 md:border-r">
+          <p className="mb-auto text-[12.5px] font-bold text-black">
+            Reviewed and Approved by:
+          </p>
+          <input
+            name="validator_rpc_name"
+            type="text"
+            className="mt-8 h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
+            aria-label="Signature over Printed Name of Regional Program Coordinator"
+          />
+          <p className="mt-2 text-center text-[11px] text-black">
+            Signature over Printed Name of Regional Program Coordinator
+          </p>
+        </div>
+        <div className="flex min-h-36 flex-col justify-end p-4">
+          <p className="mb-auto text-[12.5px] font-bold text-black">Date</p>
+          <input
+            name="validator_approval_date"
+            type="date"
+            className="mt-8 h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
+          />
+          <p className="mt-2 text-center text-[11px] text-black">Date</p>
+        </div>
+      </div>
+
+      <div className="border-b border-black px-4 py-3 text-center text-[11px] leading-relaxed text-zinc-600">
+        <p className="font-semibold text-zinc-800">PAGE 5 of 5</p>
+        <p className="mt-1">
+          DSWD Field Office XI, Ramon Magsaysay Avenue corner Damaso Suazo
+          Street, Davao City, Philippines 8000
+        </p>
+        <p>Website: fo11.dswd.gov.ph Tel. No.:(082) 227-1964</p>
+      </div>
+      </fieldset>
+
       <div className="flex flex-col gap-3 border-t border-black bg-zinc-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <p className="text-xs text-zinc-500">
-            Download Excel uses the same form layout (sections, grids, and your
-            answers filled in).
+            {readOnly
+              ? "Viewing a saved record in the original form layout. Fields are read-only."
+              : mode === "edit"
+                ? "Editing a saved record. Save changes updates this record in Supabase."
+                : "Save stores the record in Supabase. Download Excel is optional and independent."}
           </p>
+          {saveMessage ? (
+            <p className="text-xs text-zinc-700" aria-live="polite">
+              {saveMessage}{" "}
+              {savedRecordId ? (
+                <Link
+                  href={`/records/${savedRecordId}`}
+                  className="font-medium underline underline-offset-2"
+                >
+                  View record
+                </Link>
+              ) : null}
+            </p>
+          ) : null}
           {exportMessage ? (
             <p className="text-xs text-zinc-700" aria-live="polite">
               {exportMessage}
@@ -1245,18 +2104,26 @@ export function CboInformationSheet() {
           <button
             type="button"
             onClick={() => void handleDownloadExcel()}
-            disabled={exporting}
+            disabled={busy}
             className="h-10 rounded-md border border-zinc-300 bg-white px-5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {exporting ? "Preparing Excel…" : "Download Excel"}
           </button>
-          <button
-            type="submit"
-            disabled={exporting}
-            className="h-10 rounded-md bg-zinc-900 px-5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {exporting ? "Preparing Excel…" : "Submit & Download Excel"}
-          </button>
+          {!readOnly ? (
+            <button
+              type="submit"
+              disabled={busy}
+              className="h-10 rounded-md bg-zinc-900 px-5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving
+                ? mode === "edit"
+                  ? "Updating…"
+                  : "Saving…"
+                : mode === "edit"
+                  ? "Update"
+                  : "Save"}
+            </button>
+          ) : null}
         </div>
       </div>
     </form>

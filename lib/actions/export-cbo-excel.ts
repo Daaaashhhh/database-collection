@@ -997,6 +997,794 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     valign: "middle",
     fill: LIGHT_FILL,
   });
+  row = certStart + 2;
+
+  // C. NP-CP Requirement Checklist
+  row = sectionBanner(sheet, row, "C. NP-CP REQUIREMENT CHECKLIST");
+  row = mergeSet(sheet, row, 1, row, COLS, "I. LEGAL REQUIREMENTS", {
+    bold: true,
+    size: 11,
+    fill: HEADER_FILL,
+    valign: "middle",
+  });
+  row = mergeSet(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    `${mark(isChecked(data, "legal_certificate_of_registration"))} A. Certificate of Registration`,
+    {
+      bold: true,
+      size: 10,
+      fill: SUBHEADER_FILL,
+      valign: "middle",
+    },
+  );
+
+  const agencies = [
+    {
+      key: "dti",
+      title: "Department of Trade and Industry (DTI)",
+      fields: [
+        ["Territorial scope", "territorial_scope"],
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "sec",
+      title: "Securities and Exchange Commission (SEC)",
+      fields: [
+        ["Type of Registration", "type_of_registration"],
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "cda",
+      title: "Cooperative Development Authority (CDA)",
+      fields: [
+        ["Type of Cooperative", "type_of_cooperative"],
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "cso",
+      title:
+        "Civil Society Organization (CSO)/ Non-government Organizations (NGO)/ Peoples' Organization (PO)",
+      fields: [
+        ["Agency issuer", "agency_issuer"],
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+  ] as const;
+
+  const agencyStart = row;
+  const agencyRowCount = 5;
+  for (let i = 0; i < agencies.length; i += 1) {
+    const agency = agencies[i];
+    const startCol = i * 3 + 1;
+    const endCol = startCol + 2;
+    const selected = isChecked(data, `registration_${agency.key}_selected`);
+    const lines = [
+      `${mark(selected)} ${agency.title}`,
+      ...agency.fields.map(
+        ([label, field]) =>
+          `${label}: ${getValue(data, `registration_${agency.key}_${field}`)}`,
+      ),
+    ].join("\n");
+
+    sheet.getRow(agencyStart).height = 22;
+    for (let r = 1; r < agencyRowCount; r += 1) {
+      sheet.getRow(agencyStart + r).height = 18;
+    }
+
+    mergeSet(
+      sheet,
+      agencyStart,
+      startCol,
+      agencyStart + agencyRowCount - 1,
+      endCol,
+      lines,
+      { size: 8, valign: "top" },
+    );
+  }
+  row = agencyStart + agencyRowCount;
+
+  row = mergeSet(sheet, row, 1, row, COLS, "II. FINANCIAL REQUIREMENTS", {
+    bold: true,
+    size: 11,
+    fill: HEADER_FILL,
+    valign: "middle",
+  });
+
+  const financialItems = [
+    {
+      key: "dole",
+      title:
+        "Department of Labor and Employment (DOLE) Registration under Rule 1020",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+      cols: 3,
+    },
+    {
+      key: "bank_book",
+      title: "Bank book / Books of Account",
+      fields: [] as [string, string][],
+      cols: 2,
+    },
+    {
+      key: "afs",
+      title: "Updated / Audited Financial Statement (AFS)",
+      fields: [["Year", "year"]],
+      cols: 2,
+    },
+    {
+      key: "itr",
+      title: "Latest Income Tax Return (ITR)",
+      fields: [["Year", "year"]],
+      cols: 2,
+    },
+    {
+      key: "sales_invoice",
+      title: "Sales Invoice",
+      fields: [] as [string, string][],
+      cols: 3,
+    },
+  ] as const;
+
+  const finStart = row;
+  let finCol = 1;
+  for (const item of financialItems) {
+    const selected = isChecked(data, `financial_${item.key}_selected`);
+    const lines = [
+      `${mark(selected)} ${item.title}`,
+      ...item.fields.map(
+        ([label, field]) =>
+          `${label}: ${getValue(data, `financial_${item.key}_${field}`)}`,
+      ),
+    ].join("\n");
+    const endCol = Math.min(finCol + item.cols - 1, COLS);
+    mergeSet(sheet, finStart, finCol, finStart + 3, endCol, lines, {
+      size: 8,
+      valign: "top",
+    });
+    finCol = endCol + 1;
+  }
+  for (let r = 0; r < 4; r += 1) {
+    sheet.getRow(finStart + r).height = 18;
+  }
+  row = finStart + 4;
+
+  row = mergeSet(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    "III. ADDITIONAL REGISTRATIONS/ACCREDITATIONS",
+    {
+      bold: true,
+      size: 11,
+      fill: HEADER_FILL,
+      valign: "middle",
+    },
+  );
+
+  const additionalItems = [
+    {
+      key: "business_permit",
+      title: "Business Permit (Mayor's Permit)",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "ffedis",
+      title:
+        "Farmers and Fisherfolk Enterprise Development Information System (FFEDIS)",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "bir",
+      title: "BIR Registration",
+      fields: [
+        ["Type of BIR Registration", "type_of_bir_registration"],
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "philgeps",
+      title: "Philippine Government Electronic Procurement (PhilGEPS)",
+      fields: [
+        ["Type of Registration", "type_of_registration"],
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "rsbsa",
+      title: "Registry System for Basic Sectors in Agriculture (RSBSA)",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "fish_ar",
+      title: "Fisherfolk Registration (FISH-AR)",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "fda",
+      title: "Food and Drug Administration (FDA)",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "arbo",
+      title: "Agrarian Reform Beneficiaries Organizations",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "farmers_association",
+      title: "Farmers' Association",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "irrigators_association",
+      title: "Irrigators Association",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "labor_unions",
+      title: "Labor Unions and Workers' Association",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+    {
+      key: "slpa",
+      title: "Sustainable Livelihood Program Associations",
+      fields: [
+        ["Registry No.", "registry_no"],
+        ["Date of Issuance", "date_of_issuance"],
+        ["Date of Validity", "date_of_validity"],
+      ],
+    },
+  ] as const;
+
+  for (let i = 0; i < additionalItems.length; i += 4) {
+    const blockStart = row;
+    for (let c = 0; c < 4; c += 1) {
+      const item = additionalItems[i + c];
+      if (!item) continue;
+      const selected = isChecked(data, `additional_${item.key}_selected`);
+      const lines = [
+        `${mark(selected)} ${item.title}`,
+        ...item.fields.map(
+          ([label, field]) =>
+            `${label}: ${getValue(data, `additional_${item.key}_${field}`)}`,
+        ),
+      ].join("\n");
+      const startCol = c * 3 + 1;
+      mergeSet(sheet, blockStart, startCol, blockStart + 4, startCol + 2, lines, {
+        size: 8,
+        valign: "top",
+      });
+    }
+    for (let r = 0; r < 5; r += 1) {
+      sheet.getRow(blockStart + r).height = 16;
+    }
+    row = blockStart + 5;
+  }
+
+  row = mergeSet(sheet, row, 1, row, COLS, "IV. INTERVENTION RECEIVED", {
+    bold: true,
+    size: 11,
+    fill: HEADER_FILL,
+    valign: "middle",
+  });
+
+  const interventionHeader = row;
+  sheet.getRow(interventionHeader).height = 42;
+  mergeSet(sheet, interventionHeader, 1, interventionHeader, 3, "PARTNER AGENCY/STAKEHOLDER:", {
+    bold: true,
+    size: 8,
+    fill: HEADER_FILL,
+    align: "center",
+    valign: "middle",
+  });
+  mergeSet(
+    sheet,
+    interventionHeader,
+    4,
+    interventionHeader,
+    6,
+    "INTERVENTION\n(e.g., livelihood assistance, training, equipment, or other support provided under the program)",
+    {
+      bold: true,
+      size: 8,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  mergeSet(sheet, interventionHeader, 7, interventionHeader, 8, "PPAs", {
+    bold: true,
+    size: 8,
+    fill: HEADER_FILL,
+    align: "center",
+    valign: "middle",
+  });
+  mergeSet(
+    sheet,
+    interventionHeader,
+    9,
+    interventionHeader,
+    10,
+    "AMOUNT (PhP)\n(for fund assistance only)",
+    {
+      bold: true,
+      size: 8,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  mergeSet(
+    sheet,
+    interventionHeader,
+    11,
+    interventionHeader,
+    12,
+    "DATE RECEIVED\n(Indicate the date when the beneficiaries received the intervention.)",
+    {
+      bold: true,
+      size: 8,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  row = interventionHeader + 1;
+
+  for (let i = 0; i < 10; i += 1) {
+    mergeSet(
+      sheet,
+      row,
+      1,
+      row,
+      3,
+      getValue(data, `intervention[${i}][partner_agency]`),
+      { size: 9 },
+    );
+    mergeSet(
+      sheet,
+      row,
+      4,
+      row,
+      6,
+      getValue(data, `intervention[${i}][intervention]`),
+      { size: 9 },
+    );
+    mergeSet(sheet, row, 7, row, 8, getValue(data, `intervention[${i}][ppas]`), {
+      size: 9,
+    });
+    mergeSet(
+      sheet,
+      row,
+      9,
+      row,
+      10,
+      getValue(data, `intervention[${i}][amount]`),
+      { size: 9, align: "right" },
+    );
+    mergeSet(
+      sheet,
+      row,
+      11,
+      row,
+      12,
+      getValue(data, `intervention[${i}][date_received]`),
+      { size: 9, align: "center" },
+    );
+    row += 1;
+  }
+
+  // V. Issues, Actions and Recommendations
+  row = mergeSet(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    "V. ISSUES, ACTIONS AND RECOMMENDATIONS (Use a separate sheet if space is insufficient.)",
+    {
+      bold: true,
+      size: 10,
+      fill: HEADER_FILL,
+      valign: "middle",
+    },
+  );
+
+  const issuesHeader = row;
+  sheet.getRow(issuesHeader).height = 48;
+  mergeSet(
+    sheet,
+    issuesHeader,
+    1,
+    issuesHeader,
+    4,
+    "ISSUES AND CONCERNS/CHALLENGES*\nTo be accomplished by the CBO, focusing on documentation and requirements, capacity to supply, production capacity, and supplier's experience.",
+    {
+      bold: true,
+      size: 8,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  mergeSet(
+    sheet,
+    issuesHeader,
+    5,
+    issuesHeader,
+    8,
+    "ACTION TAKEN*\n(Actions undertaken by the CBO to address the issues or challenges)",
+    {
+      bold: true,
+      size: 8,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  mergeSet(
+    sheet,
+    issuesHeader,
+    9,
+    issuesHeader,
+    12,
+    "RECOMMENDATION*\n(Suggestions or recommendations provided by the RPMO's)",
+    {
+      bold: true,
+      size: 8,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  row = issuesHeader + 1;
+
+  const issuesBody = row;
+  for (let r = 0; r < 6; r += 1) {
+    sheet.getRow(issuesBody + r).height = 18;
+  }
+  mergeSet(
+    sheet,
+    issuesBody,
+    1,
+    issuesBody + 5,
+    4,
+    getValue(data, "issues_concerns_challenges"),
+    { size: 9, valign: "top" },
+  );
+  mergeSet(
+    sheet,
+    issuesBody,
+    5,
+    issuesBody + 5,
+    8,
+    getValue(data, "action_taken"),
+    { size: 9, valign: "top" },
+  );
+  mergeSet(
+    sheet,
+    issuesBody,
+    9,
+    issuesBody + 5,
+    12,
+    getValue(data, "recommendation"),
+    { size: 9, valign: "top" },
+  );
+  row = issuesBody + 6;
+
+  // VI. CBO Assessment
+  row = mergeSet(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    "VI. CBO ASSESSMENT* (Kindly provide the details of the assessment of the CBO along with a narrative justification).",
+    {
+      bold: true,
+      size: 10,
+      fill: HEADER_FILL,
+      valign: "middle",
+    },
+  );
+
+  const assessHeader = row;
+  sheet.getRow(assessHeader).height = 72;
+  mergeSet(
+    sheet,
+    assessHeader,
+    1,
+    assessHeader,
+    4,
+    "CBO Assessment Status (Provide preliminary assessment of the CBO)*\n1. Qualified CBOs completed all requirements and can supply to institutional markets.\n2. Semi-qualified CBOs have incomplete requirements.\n3. Not Qualified CBOs have no existing requirements during latest validation (e.g. newly organized SLPAs).",
+    {
+      bold: true,
+      size: 7,
+      fill: HEADER_FILL,
+      align: "left",
+      valign: "top",
+    },
+  );
+  mergeSet(
+    sheet,
+    assessHeader,
+    5,
+    assessHeader,
+    7,
+    "Remarks in terms of CBO Assessment*\n(indicate the specific reason why the CBO assessment is semi qualified or not qualified)",
+    {
+      bold: true,
+      size: 7,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  mergeSet(
+    sheet,
+    assessHeader,
+    8,
+    assessHeader,
+    9,
+    "Date of Assessment*\n(Identify the specific date the RPMO/RCT provided the result of the preliminary assessment)",
+    {
+      bold: true,
+      size: 7,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  mergeSet(
+    sheet,
+    assessHeader,
+    10,
+    assessHeader,
+    12,
+    "Remarks*\n(Input other relevant information on the CBO)",
+    {
+      bold: true,
+      size: 7,
+      fill: HEADER_FILL,
+      align: "center",
+      valign: "middle",
+    },
+  );
+  row = assessHeader + 1;
+
+  const assessmentStatus = getValue(data, "cbo_assessment_status");
+  const statusLabel =
+    assessmentStatus === "qualified"
+      ? "Qualified"
+      : assessmentStatus === "semi_qualified"
+        ? "Semi-qualified"
+        : assessmentStatus === "not_qualified"
+          ? "Not Qualified"
+          : "";
+
+  const assessBody = row;
+  for (let r = 0; r < 5; r += 1) {
+    sheet.getRow(assessBody + r).height = 18;
+  }
+  mergeSet(sheet, assessBody, 1, assessBody + 4, 4, statusLabel, {
+    size: 10,
+    valign: "top",
+  });
+  mergeSet(
+    sheet,
+    assessBody,
+    5,
+    assessBody + 4,
+    7,
+    getValue(data, "cbo_assessment_remarks"),
+    { size: 9, valign: "top" },
+  );
+  mergeSet(
+    sheet,
+    assessBody,
+    8,
+    assessBody + 4,
+    9,
+    getValue(data, "date_of_assessment"),
+    { size: 9, valign: "top", align: "center" },
+  );
+  mergeSet(
+    sheet,
+    assessBody,
+    10,
+    assessBody + 4,
+    12,
+    getValue(data, "cbo_other_remarks"),
+    { size: 9, valign: "top" },
+  );
+  row = assessBody + 5;
+
+  // RCT deliberation + narrative
+  row = mergeSet(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    "Kindly check and provide the result of the assessment of the CBO along with a narrative justification",
+    { italic: true, size: 9 },
+  );
+
+  const rct = getValue(data, "rct_deliberation");
+  row = mergeSet(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    `${radioMark(rct, "recommended")} RECOMMENDED FOR RCT DELIBERATION     ${radioMark(rct, "not_recommended")} NOT RECOMMENDED FOR RCT DELIBERATION`,
+    { size: 10, bold: true },
+  );
+
+  row = mergeSet(sheet, row, 1, row, COLS, "NARRATIVE:", {
+    bold: true,
+    size: 10,
+    fill: LIGHT_FILL,
+  });
+
+  const narrativeStart = row;
+  for (let r = 0; r < 4; r += 1) {
+    sheet.getRow(narrativeStart + r).height = 18;
+  }
+  mergeSet(
+    sheet,
+    narrativeStart,
+    1,
+    narrativeStart + 3,
+    COLS,
+    getValue(data, "assessment_narrative"),
+    { size: 9, valign: "top" },
+  );
+  row = narrativeStart + 4;
+
+  // Others - if qualified
+  row = mergeSet(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    "OTHERS (if the CBO deemed as qualified)",
+    {
+      bold: true,
+      size: 11,
+      fill: HEADER_FILL,
+      valign: "middle",
+    },
+  );
+  sheet.getRow(row).height = 36;
+  labeledBlock(
+    sheet,
+    row,
+    1,
+    row,
+    COLS,
+    "Date Confirmed as EPAHP Qualified CBO*",
+    getValue(data, "date_confirmed_epahp_qualified"),
+    "(Provide the date of confirmation as qualified CBO)",
+  );
+  row += 1;
+
+  // Validators
+  row = mergeSet(sheet, row, 1, row, COLS, "VALIDATORS", {
+    bold: true,
+    size: 11,
+    fill: HEADER_FILL,
+    align: "center",
+    valign: "middle",
+  });
+
+  const validatorStart = row;
+  for (let r = 0; r < 5; r += 1) {
+    sheet.getRow(validatorStart + r).height = 18;
+  }
+  mergeSet(
+    sheet,
+    validatorStart,
+    1,
+    validatorStart + 4,
+    5,
+    `Validate by:\n\n${getValue(data, "validator_field_pdo_name") || "________________________"}\nSignature over Printed Name of Field Validator (PDO)`,
+    { size: 9, align: "center", valign: "bottom" },
+  );
+  mergeSet(
+    sheet,
+    validatorStart,
+    6,
+    validatorStart + 4,
+    9,
+    `Reviewed and Approved by:\n\n${getValue(data, "validator_rpc_name") || "________________________"}\nSignature over Printed Name of Regional Program Coordinator`,
+    { size: 9, align: "center", valign: "bottom" },
+  );
+  mergeSet(
+    sheet,
+    validatorStart,
+    10,
+    validatorStart + 4,
+    12,
+    `Date\n\n${getValue(data, "validator_approval_date") || "____________"}\nDate`,
+    { size: 9, align: "center", valign: "bottom" },
+  );
+  row = validatorStart + 5;
+
+  row = mergeSet(sheet, row, 1, row, COLS, "PAGE 5 of 5", {
+    bold: true,
+    size: 10,
+    align: "center",
+  });
+  mergeSet(
+    sheet,
+    row,
+    1,
+    row + 1,
+    COLS,
+    "DSWD Field Office XI, Ramon Magsaysay Avenue corner Damaso Suazo Street, Davao City, Philippines 8000\nWebsite: fo11.dswd.gov.ph Tel. No.:(082) 227-1964",
+    { size: 8, align: "center", italic: true },
+  );
 }
 
 export async function exportCboExcelAction(formData: FormData): Promise<{
