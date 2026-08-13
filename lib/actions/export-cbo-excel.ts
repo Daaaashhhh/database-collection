@@ -8,6 +8,11 @@ import { VALIDATOR_RPC_NAME } from "@/lib/cbo/validators";
 
 const COLS = 12;
 
+/** Long bond (PH 8.5"×13") — Excel Legal (5) is the closest standard size (8.5"×14"). */
+const PRINT_PAPER_SIZE = 5;
+/** Slightly narrower columns so 12 cols fit printable width without horizontal crop. */
+const PRINT_COLUMN_WIDTH = 8.2;
+
 const HEADER_FILL: ExcelJS.Fill = {
   type: "pattern",
   pattern: "solid",
@@ -147,6 +152,26 @@ function excelCellRange(
   endCol: number,
 ) {
   return `${excelColumnLetter(startCol)}${startRow}:${excelColumnLetter(endCol)}${endRow}`;
+}
+
+function applyWorksheetPrintSetup(sheet: ExcelJS.Worksheet, lastRow: number) {
+  sheet.pageSetup.paperSize = PRINT_PAPER_SIZE;
+  sheet.pageSetup.orientation = "portrait";
+  sheet.pageSetup.fitToPage = true;
+  sheet.pageSetup.fitToWidth = 1;
+  sheet.pageSetup.fitToHeight = 0;
+  sheet.pageSetup.scale = 100;
+  sheet.pageSetup.horizontalCentered = true;
+  sheet.pageSetup.showGridLines = false;
+  sheet.pageSetup.margins = {
+    left: 0.25,
+    right: 0.25,
+    top: 0.5,
+    bottom: 0.5,
+    header: 0.2,
+    footer: 0.2,
+  };
+  sheet.pageSetup.printArea = excelCellRange(1, 1, lastRow, COLS);
 }
 
 function addHeaderLogos(sheet: ExcelJS.Worksheet, startRow: number) {
@@ -375,18 +400,10 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
   // Prefer one clean builder (avoids the half-built path above)
   const sheet = workbook.addWorksheet("CBO Information Sheet", {
     properties: { defaultRowHeight: 18 },
-    pageSetup: {
-      paperSize: 9,
-      orientation: "portrait",
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 0,
-      margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
-    },
   });
 
   for (let c = 1; c <= COLS; c += 1) {
-    sheet.getColumn(c).width = 9.8;
+    sheet.getColumn(c).width = PRINT_COLUMN_WIDTH;
   }
 
   let row = 1;
@@ -1861,6 +1878,8 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     "DSWD Field Office XI, Ramon Magsaysay Avenue corner Damaso Suazo Street, Davao City, Philippines 8000\nWebsite: fo11.dswd.gov.ph Tel. No.:(082) 227-1964",
     { size: 8, align: "center", italic: true },
   );
+
+  applyWorksheetPrintSetup(sheet, row + 1);
 }
 
 export async function exportCboExcelAction(formData: FormData): Promise<{
