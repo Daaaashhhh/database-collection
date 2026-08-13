@@ -82,6 +82,7 @@ export default async function RecordDetailPage({
 
         {record && payload ? (
           <>
+            <h1 className="mb-3 text-xl font-semibold text-zinc-900">{label}</h1>
             <div className="mb-4 rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600">
               <span className="font-medium text-zinc-800">Read</span> — viewing
               saved record in the original form layout (read-only). Use{" "}

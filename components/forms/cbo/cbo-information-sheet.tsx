@@ -23,6 +23,8 @@ import {
 } from "@/lib/cbo/validators";
 
 import { downloadBase64Excel } from "@/lib/download-excel";
+import { FORM_LOGO_PATHS } from "@/lib/cbo/form-logos";
+import { signatureToTransparentPng } from "@/lib/cbo/signature-png-client";
 function RequiredMark() {
   return <span className="text-[#c00000]">*</span>;
 }
@@ -733,15 +735,18 @@ export function CboInformationSheet({
   );
 
   useEffect(() => {
-    if (!formRef.current || readOnly) return;
+    if (!formRef.current) return;
 
-    // Apply server payload first (edit/view modes), then restore any local draft.
+    // Always hydrate from saved server data (view + edit).
     if (initialData) {
       applyPayloadToForm(formRef.current, initialData);
       setOrgRegistration(initialData.organization_registration ?? "");
       setPdoSignature(initialData.validator_field_pdo_signature ?? "");
       setRpcSignature(initialData.validator_rpc_signature ?? "");
     }
+
+    // Local draft restore only while editing/creating — not in read-only view.
+    if (readOnly) return;
 
     try {
       const raw = localStorage.getItem(draftStorageKey);
@@ -800,12 +805,18 @@ export function CboInformationSheet({
     setExporting(true);
     setExportMessage("");
 
-    function attachSignatures(formData: FormData) {
+    async function attachTransparentSignatures(formData: FormData) {
       if (pdoSignature) {
-        formData.set("validator_field_pdo_signature", pdoSignature);
+        formData.set(
+          "validator_field_pdo_signature",
+          await signatureToTransparentPng(pdoSignature, { crop: true }),
+        );
       }
       if (rpcSignature) {
-        formData.set("validator_rpc_signature", rpcSignature);
+        formData.set(
+          "validator_rpc_signature",
+          await signatureToTransparentPng(rpcSignature, { crop: true }),
+        );
       }
       return formData;
     }
@@ -815,6 +826,24 @@ export function CboInformationSheet({
       if (readOnly) {
         if (!initialData) return;
         const formData = payloadToFormData(initialData);
+        if (initialData.validator_field_pdo_signature) {
+          formData.set(
+            "validator_field_pdo_signature",
+            await signatureToTransparentPng(
+              initialData.validator_field_pdo_signature,
+              { crop: true },
+            ),
+          );
+        }
+        if (initialData.validator_rpc_signature) {
+          formData.set(
+            "validator_rpc_signature",
+            await signatureToTransparentPng(
+              initialData.validator_rpc_signature,
+              { crop: true },
+            ),
+          );
+        }
         const excel = await exportCboExcelAction(formData);
         downloadBase64Excel(excel.base64, excel.filename);
         setExportMessage("Excel file downloaded.");
@@ -822,7 +851,9 @@ export function CboInformationSheet({
       }
 
       if (!formRef.current) return;
-      const formData = attachSignatures(new FormData(formRef.current));
+      const formData = await attachTransparentSignatures(
+        new FormData(formRef.current),
+      );
 
       // Create/edit: save first, then download.
       const saveResult = await persistRecord(formData);
@@ -955,30 +986,24 @@ export function CboInformationSheet({
       {/* Header */}
       <div className="grid grid-cols-[auto_1fr] gap-4 border-b border-black p-4 sm:gap-6 sm:p-5">
         <div className="flex items-center gap-2 sm:gap-3">
-          <div
-            className="flex size-14 items-center justify-center rounded-full border border-zinc-300 bg-zinc-50 text-center text-[9px] font-semibold leading-tight text-zinc-500 sm:size-16"
-            aria-hidden
-          >
-            DSWD
-            <br />
-            Logo
-          </div>
-          <div
-            className="flex size-14 items-center justify-center rounded-full border border-[#6b8f4e] bg-[#e8f2df] text-center text-[8px] font-semibold leading-tight text-[#3f5d2a] sm:size-16"
-            aria-hidden
-          >
-            EPAHP
-            <br />
-            Seal
-          </div>
-          <div
-            className="hidden size-14 items-center justify-center rounded-full border border-red-300 bg-red-50 text-center text-[8px] font-semibold leading-tight text-red-700 sm:flex sm:size-16"
-            aria-hidden
-          >
-            Bagong
-            <br />
-            Pilipinas
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={FORM_LOGO_PATHS.dswd}
+            alt="DSWD"
+            className="h-16 w-auto max-w-[140px] object-contain sm:h-[4.5rem] sm:max-w-[168px]"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={FORM_LOGO_PATHS.epahp}
+            alt="EPAHP"
+            className="size-12 shrink-0 rounded-full object-cover sm:size-14"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={FORM_LOGO_PATHS.bagongPilipinas}
+            alt="Bagong Pilipinas"
+            className="hidden size-12 shrink-0 object-contain sm:block sm:size-14"
+          />
         </div>
 
         <div className="text-right">

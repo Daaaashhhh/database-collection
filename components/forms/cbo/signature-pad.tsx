@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { signatureToTransparentPng } from "@/lib/cbo/signature-png-client";
 
 type SignaturePadProps = {
   name: string;
@@ -17,14 +18,40 @@ function drawImageOnCanvas(
   if (!ctx) return;
 
   const rect = canvas.getBoundingClientRect();
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, rect.width, rect.height);
+  const dpr = window.devicePixelRatio || 1;
+  ctx.clearRect(0, 0, rect.width, rect.height);
 
   if (!dataUrl) return;
 
   const img = new Image();
   img.onload = () => {
-    ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    const expectedW = Math.floor(rect.width * dpr);
+    const expectedH = Math.floor(rect.height * dpr);
+
+    // Full-canvas signature: redraw at native scale (no stretch snap).
+    if (
+      Math.abs(img.width - expectedW) <= 2 &&
+      Math.abs(img.height - expectedH) <= 2
+    ) {
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      return;
+    }
+
+    // Legacy cropped signatures: fit inside the pad without upscaling.
+    const scale = Math.min(
+      rect.width / img.width,
+      rect.height / img.height,
+      1,
+    );
+    const w = img.width * scale;
+    const h = img.height * scale;
+    ctx.drawImage(
+      img,
+      (rect.width - w) / 2,
+      (rect.height - h) / 2,
+      w,
+      h,
+    );
   };
   img.src = dataUrl;
 }
@@ -42,8 +69,7 @@ function setupCanvas(canvas: HTMLCanvasElement) {
   ctx.lineWidth = 2;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, rect.width, rect.height);
+  ctx.clearRect(0, 0, rect.width, rect.height);
   return ctx;
 }
 
@@ -84,10 +110,14 @@ export function SignaturePad({
     const canvas = canvasRef.current;
     const input = inputRef.current;
     if (!canvas || !input) return;
-    const dataUrl = canvas.toDataURL("image/png");
-    input.value = dataUrl;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    onChange?.(dataUrl);
+
+    void signatureToTransparentPng(canvas.toDataURL("image/png")).then(
+      (dataUrl) => {
+        input.value = dataUrl;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        onChange?.(dataUrl);
+      },
+    );
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -146,7 +176,7 @@ export function SignaturePad({
         <img
           src={value}
           alt="Signature"
-          className="h-28 w-full border border-zinc-300 bg-white object-contain"
+          className="h-28 w-full border border-zinc-300 bg-transparent object-contain"
         />
         <input type="hidden" name={name} value={value} readOnly />
       </div>

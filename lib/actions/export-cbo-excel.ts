@@ -1,6 +1,9 @@
 "use server";
 
 import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
+import { FORM_LOGO_FILES } from "@/lib/cbo/form-logos";
 import { VALIDATOR_RPC_NAME } from "@/lib/cbo/validators";
 
 const COLS = 12;
@@ -88,12 +91,14 @@ function addSignatureImage(
 
   try {
     const imageId = sheet.workbook.addImage({ base64, extension: "png" });
+    const imageWidth = Math.min(colSpan * 42, 128);
+    const imageHeight = 20;
+    const colOffset = Math.max(0.15, (colSpan - imageWidth / 68) / 2);
+
+    // Sit in the blank line between the section label and the printed name.
     sheet.addImage(imageId, {
-      tl: { col: startCol - 1 + 0.15, row: startRow - 1 + 0.35 },
-      ext: {
-        width: Math.min(colSpan * 68 - 12, 280),
-        height: 58,
-      },
+      tl: { col: startCol - 1 + colOffset, row: startRow - 1 + 0.68 },
+      ext: { width: imageWidth, height: imageHeight },
     });
   } catch {
     // Ignore corrupt signature data so export still succeeds.
@@ -111,6 +116,60 @@ function ensureBlockMinHeight(
   for (let r = startRow; r <= endRow; r += 1) {
     const row = sheet.getRow(r);
     row.height = Math.max(row.height ?? 18, perRow);
+  }
+}
+
+const LOGO_DIR = path.join(process.cwd(), "public", "logos");
+
+function readLogoBase64(filename: string): string | null {
+  try {
+    return fs.readFileSync(path.join(LOGO_DIR, filename)).toString("base64");
+  } catch {
+    return null;
+  }
+}
+
+function excelColumnLetter(col: number) {
+  let letter = "";
+  let n = col;
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    letter = String.fromCharCode(65 + rem) + letter;
+    n = Math.floor((n - 1) / 26);
+  }
+  return letter;
+}
+
+function excelCellRange(
+  startRow: number,
+  startCol: number,
+  endRow: number,
+  endCol: number,
+) {
+  return `${excelColumnLetter(startCol)}${startRow}:${excelColumnLetter(endCol)}${endRow}`;
+}
+
+function addHeaderLogos(sheet: ExcelJS.Worksheet, startRow: number) {
+  const endRow = startRow + 1;
+  const placements = [
+    { file: FORM_LOGO_FILES.dswd, range: excelCellRange(startRow, 1, endRow, 2) },
+    { file: FORM_LOGO_FILES.epahp, range: excelCellRange(startRow, 3, endRow, 3) },
+    {
+      file: FORM_LOGO_FILES.bagongPilipinas,
+      range: excelCellRange(startRow, 4, endRow, 4),
+    },
+  ] as const;
+
+  for (const placement of placements) {
+    const base64 = readLogoBase64(placement.file);
+    if (!base64) continue;
+
+    try {
+      const imageId = sheet.workbook.addImage({ base64, extension: "png" });
+      sheet.addImage(imageId, placement.range);
+    } catch {
+      // Skip if a logo file cannot be embedded.
+    }
   }
 }
 
@@ -332,24 +391,33 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
 
   let row = 1;
 
-  sheet.getRow(row).height = 24;
-  mergeSet(sheet, row, 1, row + 1, 3, "DSWD / EPAHP / Bagong Pilipinas", {
-    bold: true,
-    size: 9,
+  sheet.getRow(row).height = 28;
+  mergeSet(sheet, row, 1, row + 1, 2, "", {
     align: "center",
     valign: "middle",
     fill: LIGHT_FILL,
   });
+  mergeSet(sheet, row, 3, row + 1, 3, "", {
+    align: "center",
+    valign: "middle",
+    fill: LIGHT_FILL,
+  });
+  mergeSet(sheet, row, 4, row + 1, 4, "", {
+    align: "center",
+    valign: "middle",
+    fill: LIGHT_FILL,
+  });
+  addHeaderLogos(sheet, row);
   mergeSet(
     sheet,
     row,
-    4,
+    5,
     row + 1,
     COLS,
     "ENHANCED PARTNERSHIP AGAINST HUNGER AND POVERTY:\nCOMMUNITY-BASED ORGANIZATION INFORMATION SHEET (Version 3.0)",
     { bold: true, size: 12, align: "right", valign: "middle" },
   );
-  sheet.getRow(row + 1).height = 28;
+  sheet.getRow(row + 1).height = 32;
   row += 2;
 
   row = mergeSet(
@@ -1736,8 +1804,8 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     1,
     validatorStart + 4,
     5,
-    `Validate by:\n\n${getValue(data, "validator_field_pdo_name") || "________________________"}\nSignature over Printed Name of Field Validator (PDO)`,
-    { size: 9, align: "center", valign: "bottom" },
+    `Validate by:\n\n\n${getValue(data, "validator_field_pdo_name") || "________________________"}\nSignature over Printed Name of Field Validator (PDO)`,
+    { size: 9, align: "center", valign: "top" },
   );
   addSignatureImage(
     sheet,
@@ -1752,8 +1820,8 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     6,
     validatorStart + 4,
     9,
-    `Reviewed and Approved by:\n\n${VALIDATOR_RPC_NAME}\nSignature over Printed Name of Regional Program Coordinator`,
-    { size: 9, align: "center", valign: "bottom" },
+    `Reviewed and Approved by:\n\n\n${VALIDATOR_RPC_NAME}\nSignature over Printed Name of Regional Program Coordinator`,
+    { size: 9, align: "center", valign: "top" },
   );
   addSignatureImage(
     sheet,
@@ -1766,7 +1834,7 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     getValue(data, "validator_field_pdo_signature") ||
     getValue(data, "validator_rpc_signature")
   ) {
-    ensureBlockMinHeight(sheet, validatorStart, validatorStart + 4, 115);
+    ensureBlockMinHeight(sheet, validatorStart, validatorStart + 4, 92);
   }
   mergeSet(
     sheet,
