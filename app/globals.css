@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f6f8;
+  --background: #f4faf5;
   --foreground: #18181b;
   --surface: #ffffff;
   --border: #e4e4e7;
   --accent: #18181b;
   --form-header: #c1d7ae;
+  /* EPAHP brand (dashboard / marketing surfaces) */
+  --epahp-green: #0d6b38;
+  --epahp-green-dark: #0a3d1f;
+  --epahp-green-light: #e9f5ec;
+  --epahp-gold: #f5c518;
 }
 
 @theme inline {
@@ -18,8 +23,8 @@
 
 body {
   background:
-    radial-gradient(1200px 500px at 10% -10%, #e8eef5 0%, transparent 55%),
-    radial-gradient(900px 400px at 100% 0%, #edf2f0 0%, transparent 50%),
+    radial-gradient(1200px 500px at 10% -10%, #dceee2 0%, transparent 55%),
+    radial-gradient(900px 400px at 100% 0%, #f5f9e8 0%, transparent 50%),
     var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;

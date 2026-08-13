@@ -7,9 +7,11 @@ import { deleteCboRecordAction } from "@/lib/actions/save-cbo-record";
 export function DeleteRecordButton({
   recordId,
   organizationLabel,
+  variant = "default",
 }: {
   recordId: string;
   organizationLabel: string;
+  variant?: "default" | "header";
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -39,7 +41,11 @@ export function DeleteRecordButton({
         type="button"
         onClick={handleDelete}
         disabled={pending}
-        className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+        className={
+          variant === "header"
+            ? "rounded-md border border-red-300/50 bg-red-900/25 px-3 py-1.5 text-sm font-medium text-red-100 transition hover:bg-red-900/40 disabled:opacity-60"
+            : "rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+        }
       >
         {pending ? "Deleting…" : "Delete"}
       </button>

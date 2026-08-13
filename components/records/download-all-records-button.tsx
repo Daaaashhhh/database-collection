@@ -48,7 +48,7 @@ export function DownloadAllRecordsButton({
         type="button"
         onClick={() => void handleDownload()}
         disabled={disabled || loading}
-        className="inline-flex h-10 items-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex h-10 items-center rounded-md border border-[#0d6b38]/35 bg-white px-4 text-sm font-semibold text-[#0d6b38] transition hover:bg-[#e9f5ec] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Preparing export…" : label}
       </button>

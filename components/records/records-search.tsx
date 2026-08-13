@@ -45,7 +45,7 @@ export function RecordsSearch({ initialQuery }: { initialQuery: string }) {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Type to search by organization, contact, address…"
         autoComplete="off"
-        className="h-11 w-full flex-1 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+        className="h-11 w-full flex-1 rounded-md border border-[#c5dfc9] bg-white px-3 text-sm text-[#0a3d1f] outline-none ring-[#0d6b38]/30 focus:ring-2"
       />
       <p className="text-xs text-zinc-500 sm:w-24 sm:text-right" aria-live="polite">
         {pending ? "Searching…" : "Live search"}

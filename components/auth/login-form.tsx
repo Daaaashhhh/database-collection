@@ -24,7 +24,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           required
-          className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-zinc-900 outline-none ring-zinc-400 transition focus:ring-2"
+          className="h-11 rounded-md border border-[#c5dfc9] bg-white px-3 text-[#0a3d1f] outline-none ring-[#0d6b38]/30 transition focus:ring-2"
           placeholder="you@example.com"
         />
         {state.fieldErrors?.email?.[0] ? (
@@ -43,7 +43,7 @@ export function LoginForm() {
           autoComplete="current-password"
           required
           minLength={8}
-          className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-zinc-900 outline-none ring-zinc-400 transition focus:ring-2"
+          className="h-11 rounded-md border border-[#c5dfc9] bg-white px-3 text-[#0a3d1f] outline-none ring-[#0d6b38]/30 transition focus:ring-2"
           placeholder="••••••••"
         />
         {state.fieldErrors?.password?.[0] ? (
@@ -67,14 +67,14 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="h-11 rounded-md bg-zinc-900 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-11 rounded-md bg-[#0d6b38] text-sm font-semibold text-white transition hover:bg-[#0a5a2f] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Signing in…" : "Sign in"}
       </button>
 
       <p className="text-center text-sm text-zinc-600">
         No account yet?{" "}
-        <Link href="/signup" className="font-medium text-zinc-900 underline-offset-2 hover:underline">
+        <Link href="/signup" className="font-medium text-[#0d6b38] underline-offset-2 hover:underline">
           Create one
         </Link>
       </p>
