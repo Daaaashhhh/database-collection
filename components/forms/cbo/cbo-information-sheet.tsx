@@ -16,6 +16,11 @@ import {
   SaveResultModal,
   type SaveModalState,
 } from "@/components/forms/cbo/save-result-modal";
+import { SignaturePad } from "@/components/forms/cbo/signature-pad";
+import {
+  VALIDATOR_PDO_OPTIONS,
+  VALIDATOR_RPC_NAME,
+} from "@/lib/cbo/validators";
 
 import { downloadBase64Excel } from "@/lib/download-excel";
 function RequiredMark() {
@@ -720,6 +725,12 @@ export function CboInformationSheet({
   const [orgRegistration, setOrgRegistration] = useState(
     () => initialData?.organization_registration ?? "",
   );
+  const [pdoSignature, setPdoSignature] = useState(
+    () => initialData?.validator_field_pdo_signature ?? "",
+  );
+  const [rpcSignature, setRpcSignature] = useState(
+    () => initialData?.validator_rpc_signature ?? "",
+  );
 
   useEffect(() => {
     if (!formRef.current || readOnly) return;
@@ -728,6 +739,8 @@ export function CboInformationSheet({
     if (initialData) {
       applyPayloadToForm(formRef.current, initialData);
       setOrgRegistration(initialData.organization_registration ?? "");
+      setPdoSignature(initialData.validator_field_pdo_signature ?? "");
+      setRpcSignature(initialData.validator_rpc_signature ?? "");
     }
 
     try {
@@ -736,6 +749,8 @@ export function CboInformationSheet({
       const payload = JSON.parse(raw) as CboFormPayload;
       applyPayloadToForm(formRef.current, payload);
       setOrgRegistration(payload.organization_registration ?? "");
+      setPdoSignature(payload.validator_field_pdo_signature ?? "");
+      setRpcSignature(payload.validator_rpc_signature ?? "");
     } catch (e) {
       // If draft is corrupted, ignore and continue with initialData.
       console.warn("Could not restore local draft", e);
@@ -785,6 +800,16 @@ export function CboInformationSheet({
     setExporting(true);
     setExportMessage("");
 
+    function attachSignatures(formData: FormData) {
+      if (pdoSignature) {
+        formData.set("validator_field_pdo_signature", pdoSignature);
+      }
+      if (rpcSignature) {
+        formData.set("validator_rpc_signature", rpcSignature);
+      }
+      return formData;
+    }
+
     try {
       // View mode: already saved — download only.
       if (readOnly) {
@@ -797,7 +822,7 @@ export function CboInformationSheet({
       }
 
       if (!formRef.current) return;
-      const formData = new FormData(formRef.current);
+      const formData = attachSignatures(new FormData(formRef.current));
 
       // Create/edit: save first, then download.
       const saveResult = await persistRecord(formData);
@@ -2011,48 +2036,57 @@ export function CboInformationSheet({
         Validators
       </div>
       <div className="grid border-b border-black md:grid-cols-[1.2fr_1.2fr_0.6fr]">
-        <div className="flex min-h-36 flex-col border-b border-black p-4 md:border-b-0 md:border-r">
+        <div className="flex flex-col border-b border-black p-4 md:border-b-0 md:border-r">
           <p className="mb-2 text-[12.5px] font-bold text-black">
             Validate by:
           </p>
-          <SelectInput
-            name="validator_field_pdo_name"
-            defaultValue={initialData?.validator_field_pdo_name}
-            placeholder="— Select validator —"
-            options={[
-              { value: "Maynard A. Cezar", label: "Maynard A. Cezar" },
-              { value: "Janz Omar D. Morales", label: "Janz Omar D. Morales" },
-              { value: "Mary Claire L. Dela Cruz", label: "Mary Claire L. Dela Cruz" },
-              { value: "Ronalyn A. Isip", label: "Ronalyn A. Isip" },
-              { value: "Channel C. Manlapaz", label: "Channel C. Manlapaz" },
-              { value: "A-R D. Tuazon", label: "A-R D. Tuazon" },
-            ]}
+          <SignaturePad
+            name="validator_field_pdo_signature"
+            value={pdoSignature}
+            readOnly={readOnly}
+            onChange={setPdoSignature}
           />
+          <div className="mt-3">
+            <SelectInput
+              name="validator_field_pdo_name"
+              defaultValue={initialData?.validator_field_pdo_name}
+              placeholder="— Select validator —"
+              options={VALIDATOR_PDO_OPTIONS.map((name) => ({
+                value: name,
+                label: name,
+              }))}
+            />
+          </div>
           <p className="mt-2 text-center text-[11px] text-black">
             Signature over Printed Name of Field Validator (PDO)
           </p>
         </div>
-        <div className="flex min-h-36 flex-col justify-end border-b border-black p-4 md:border-b-0 md:border-r">
-          <p className="mb-auto text-[12.5px] font-bold text-black">
+        <div className="flex flex-col border-b border-black p-4 md:border-b-0 md:border-r">
+          <p className="mb-2 text-[12.5px] font-bold text-black">
             Reviewed and Approved by:
           </p>
+          <SignaturePad
+            name="validator_rpc_signature"
+            value={rpcSignature}
+            readOnly={readOnly}
+            onChange={setRpcSignature}
+          />
+          <p className="mt-3 border-b border-black py-2 text-center text-[13px] font-medium text-black">
+            {VALIDATOR_RPC_NAME}
+          </p>
           <input
+            type="hidden"
             name="validator_rpc_name"
-            type="text"
-            className="mt-8 h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
-            aria-label="Signature over Printed Name of Regional Program Coordinator"
+            value={VALIDATOR_RPC_NAME}
+            readOnly
           />
           <p className="mt-2 text-center text-[11px] text-black">
             Signature over Printed Name of Regional Program Coordinator
           </p>
         </div>
-        <div className="flex min-h-36 flex-col justify-end p-4">
-          <p className="mb-auto text-[12.5px] font-bold text-black">Date</p>
-          <input
-            name="validator_approval_date"
-            type="date"
-            className="mt-8 h-8 w-full border-0 border-b border-black bg-transparent text-center text-[13px] outline-none"
-          />
+        <div className="flex flex-col p-4">
+          <p className="mb-2 text-[12.5px] font-bold text-black">Date</p>
+          <TextInput name="validator_approval_date" type="date" />
           <p className="mt-2 text-center text-[11px] text-black">Date</p>
         </div>
       </div>

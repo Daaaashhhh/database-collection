@@ -1,3 +1,5 @@
+import { VALIDATOR_RPC_NAME } from "@/lib/cbo/validators";
+
 export type ProductionRowPayload = {
   product: string;
   type: string;
@@ -125,7 +127,9 @@ export type CboFormPayload = {
   date_confirmed_epahp_qualified: string;
 
   validator_field_pdo_name: string;
+  validator_field_pdo_signature: string;
   validator_rpc_name: string;
+  validator_rpc_signature: string;
   validator_approval_date: string;
 };
 
@@ -432,7 +436,12 @@ export function parseCboFormData(data: FormData): CboFormPayload {
     ),
 
     validator_field_pdo_name: getString(data, "validator_field_pdo_name"),
-    validator_rpc_name: getString(data, "validator_rpc_name"),
+    validator_field_pdo_signature: getString(
+      data,
+      "validator_field_pdo_signature",
+    ),
+    validator_rpc_name: VALIDATOR_RPC_NAME,
+    validator_rpc_signature: getString(data, "validator_rpc_signature"),
     validator_approval_date: getString(data, "validator_approval_date"),
   };
 }

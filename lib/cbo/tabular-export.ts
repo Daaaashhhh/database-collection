@@ -207,7 +207,9 @@ function buildColumns(): TabularColumn[] {
     col("rct_deliberation", "RCT Deliberation"),
     col("date_confirmed_epahp_qualified", "Date Confirmed EPAHP Qualified"),
     col("validator_field_pdo_name", "Validator Field PDO Name"),
+    col("validator_field_pdo_signed", "Validator Field PDO Signed"),
     col("validator_rpc_name", "Validator RPC Name"),
+    col("validator_rpc_signed", "Validator RPC Signed"),
     col("validator_approval_date", "Validator Approval Date"),
   );
 
@@ -294,7 +296,9 @@ function emptyPayload(): CboFormPayload {
     assessment_narrative: "",
     date_confirmed_epahp_qualified: "",
     validator_field_pdo_name: "",
+    validator_field_pdo_signature: "",
     validator_rpc_name: "",
+    validator_rpc_signature: "",
     validator_approval_date: "",
   };
 }
@@ -443,7 +447,11 @@ export function flattenCboRecord(record: CboRecordExportRow): Record<string, str
   row.assessment_narrative = str(payload.assessment_narrative);
   row.date_confirmed_epahp_qualified = str(payload.date_confirmed_epahp_qualified);
   row.validator_field_pdo_name = str(payload.validator_field_pdo_name);
+  row.validator_field_pdo_signed = payload.validator_field_pdo_signature
+    ? "Yes"
+    : "No";
   row.validator_rpc_name = str(payload.validator_rpc_name);
+  row.validator_rpc_signed = payload.validator_rpc_signature ? "Yes" : "No";
   row.validator_approval_date = str(payload.validator_approval_date);
 
   return row;

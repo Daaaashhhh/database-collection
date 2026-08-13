@@ -186,7 +186,13 @@ export function payloadToFormData(payload: CboFormPayload): FormData {
   );
 
   append(fd, "validator_field_pdo_name", payload.validator_field_pdo_name);
+  append(
+    fd,
+    "validator_field_pdo_signature",
+    payload.validator_field_pdo_signature,
+  );
   append(fd, "validator_rpc_name", payload.validator_rpc_name);
+  append(fd, "validator_rpc_signature", payload.validator_rpc_signature);
   append(fd, "validator_approval_date", payload.validator_approval_date);
 
   return fd;

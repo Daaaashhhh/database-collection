@@ -1,6 +1,7 @@
 "use server";
 
 import ExcelJS from "exceljs";
+import { VALIDATOR_RPC_NAME } from "@/lib/cbo/validators";
 
 const COLS = 12;
 
@@ -66,6 +67,51 @@ const DOCUMENTS = [
 function getValue(data: FormData, name: string) {
   const value = data.get(name);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function parseSignatureBase64(dataUrl: string): string | null {
+  if (!dataUrl) return null;
+  const match = dataUrl.match(/^data:image\/png;base64,(.+)$/i);
+  if (match?.[1]) return match[1];
+  return null;
+}
+
+function addSignatureImage(
+  sheet: ExcelJS.Worksheet,
+  dataUrl: string,
+  startRow: number,
+  startCol: number,
+  colSpan: number,
+) {
+  const base64 = parseSignatureBase64(dataUrl);
+  if (!base64) return;
+
+  try {
+    const imageId = sheet.workbook.addImage({ base64, extension: "png" });
+    sheet.addImage(imageId, {
+      tl: { col: startCol - 1 + 0.15, row: startRow - 1 + 0.35 },
+      ext: {
+        width: Math.min(colSpan * 68 - 12, 280),
+        height: 58,
+      },
+    });
+  } catch {
+    // Ignore corrupt signature data so export still succeeds.
+  }
+}
+
+function ensureBlockMinHeight(
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  endRow: number,
+  minTotalHeight: number,
+) {
+  const rowCount = endRow - startRow + 1;
+  const perRow = minTotalHeight / rowCount;
+  for (let r = startRow; r <= endRow; r += 1) {
+    const row = sheet.getRow(r);
+    row.height = Math.max(row.height ?? 18, perRow);
+  }
 }
 
 function isChecked(data: FormData, name: string) {
@@ -1693,15 +1739,35 @@ function buildCompleteFormSheet(workbook: ExcelJS.Workbook, data: FormData) {
     `Validate by:\n\n${getValue(data, "validator_field_pdo_name") || "________________________"}\nSignature over Printed Name of Field Validator (PDO)`,
     { size: 9, align: "center", valign: "bottom" },
   );
+  addSignatureImage(
+    sheet,
+    getValue(data, "validator_field_pdo_signature"),
+    validatorStart,
+    1,
+    5,
+  );
   mergeSet(
     sheet,
     validatorStart,
     6,
     validatorStart + 4,
     9,
-    `Reviewed and Approved by:\n\n${getValue(data, "validator_rpc_name") || "________________________"}\nSignature over Printed Name of Regional Program Coordinator`,
+    `Reviewed and Approved by:\n\n${VALIDATOR_RPC_NAME}\nSignature over Printed Name of Regional Program Coordinator`,
     { size: 9, align: "center", valign: "bottom" },
   );
+  addSignatureImage(
+    sheet,
+    getValue(data, "validator_rpc_signature"),
+    validatorStart,
+    6,
+    4,
+  );
+  if (
+    getValue(data, "validator_field_pdo_signature") ||
+    getValue(data, "validator_rpc_signature")
+  ) {
+    ensureBlockMinHeight(sheet, validatorStart, validatorStart + 4, 115);
+  }
   mergeSet(
     sheet,
     validatorStart,
