@@ -26,11 +26,6 @@ const FEATURES = [
       "Full EPAHP information sheet with validation, signatures, and draft autosave.",
   },
   {
-    title: "Supabase storage",
-    description:
-      "Records persist in cbo_records — run db/supabase-cbo-records.sql once to set up.",
-  },
-  {
     title: "Excel export",
     description:
       "Download form-layout or merged-column exports for printing and reporting.",
@@ -63,7 +58,7 @@ export default function Home() {
               </h1>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-[#3d5c47]">
                 Collect, store, and manage CBO information sheets for DSWD Field
-                Office XI — with search, Excel export, and print-ready downloads.
+                Office III — with search, Excel export, and print-ready downloads.
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-3 sm:justify-start">
                 <Link
@@ -123,7 +118,7 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {FEATURES.map((feature) => (
               <div
                 key={feature.title}

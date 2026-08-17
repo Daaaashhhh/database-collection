@@ -2119,7 +2119,7 @@ export function CboInformationSheet({
       <div className="border-b border-black px-4 py-3 text-center text-[11px] leading-relaxed text-zinc-600">
         <p className="font-semibold text-zinc-800">PAGE 5 of 5</p>
         <p className="mt-1">
-          DSWD Field Office XI, Ramon Magsaysay Avenue corner Damaso Suazo
+          DSWD Field Office III, Ramon Magsaysay Avenue corner Damaso Suazo
           Street, Davao City, Philippines 8000
         </p>
         <p>Website: fo11.dswd.gov.ph Tel. No.:(082) 227-1964</p>

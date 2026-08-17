@@ -78,7 +78,7 @@ export function AppHeader({
 export function AppFooter() {
   return (
     <footer className="mt-auto border-t border-[#c5dfc9] bg-[#0d6b38] py-4 text-center text-xs text-white/80">
-      DSWD Field Office XI · EPAHP · Community-Based Organization Database
+      DSWD Field Office III · EPAHP · Community-Based Organization Database
     </footer>
   );
 }
